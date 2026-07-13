@@ -56,10 +56,9 @@ jobs:
             echo "No pnpm-lock.yaml yet — skipping build/test (pre-scaffold commit)."
           fi
 
+      # pnpm version comes from "packageManager" in package.json
       - uses: pnpm/action-setup@v4
         if: steps.workspace.outputs.exists == 'true'
-        with:
-          version: 10
 
       - uses: actions/setup-node@v4
         if: steps.workspace.outputs.exists == 'true'
