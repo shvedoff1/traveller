@@ -3,6 +3,7 @@ import { type VisitedCountry } from "@prisma/client";
 import { type UpsertVisitInput, type Visit } from "@traveller/shared";
 
 import { PrismaService } from "../../prisma/prisma.service";
+import { ProfileCacheService } from "../profile-cache/profile-cache.service";
 
 function toVisit(row: VisitedCountry): Visit {
   return {
@@ -15,7 +16,10 @@ function toVisit(row: VisitedCountry): Visit {
 
 @Injectable()
 export class VisitsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: ProfileCacheService,
+  ) {}
 
   /** All visited countries of a user, sorted by country code. */
   async list(userId: string): Promise<Visit[]> {
@@ -44,6 +48,7 @@ export class VisitsService {
       create: { userId, countryCode, ...data },
       update: data,
     });
+    await this.invalidateProfileCache(userId);
     return toVisit(row);
   }
 
@@ -52,5 +57,18 @@ export class VisitsService {
     await this.prisma.visitedCountry.deleteMany({
       where: { userId, countryCode },
     });
+    await this.invalidateProfileCache(userId);
+  }
+
+  /**
+   * Visit writes change the public profile + stats — drop the cached
+   * entries so `GET /users/:username(/stats)` reflects them immediately.
+   */
+  private async invalidateProfileCache(userId: string): Promise<void> {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { username: true },
+    });
+    await this.cache.invalidate(user?.username);
   }
 }

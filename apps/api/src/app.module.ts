@@ -7,6 +7,7 @@ import { loadEnv } from "./config/env";
 import { MailModule } from "./mail/mail.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { HealthModule } from "./modules/health/health.module";
+import { StatsModule } from "./modules/stats/stats.module";
 import { UsersModule } from "./modules/users/users.module";
 import { VisitsModule } from "./modules/visits/visits.module";
 import { PrismaModule } from "./prisma/prisma.module";
@@ -28,6 +29,7 @@ import { RedisModule } from "./redis/redis.module";
     AuthModule,
     UsersModule,
     VisitsModule,
+    StatsModule,
   ],
   providers: [
     // Custom-header CSRF check on every state-changing request.

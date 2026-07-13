@@ -33,6 +33,11 @@ export interface MapCanvasProps {
   highlighted?: string | null;
   /** One-shot camera move (e.g. picking a country in the panel). */
   flyTo?: FlyToRequest | null;
+  /**
+   * Read-only mode (public profiles): no click-to-toggle and no pointer
+   * cursor, but hover highlight, zoom and pan stay enabled.
+   */
+  readonly?: boolean;
   onCountryClick?: (iso: string) => void;
   onCountryHover?: (iso: string | null) => void;
 }
@@ -48,6 +53,7 @@ export function MapCanvas({
   selected,
   highlighted = null,
   flyTo = null,
+  readonly: readOnly = false,
   onCountryClick,
   onCountryHover,
 }: MapCanvasProps) {
@@ -63,6 +69,8 @@ export function MapCanvas({
   onClickRef.current = onCountryClick;
   const onHoverRef = useRef(onCountryHover);
   onHoverRef.current = onCountryHover;
+  const readOnlyRef = useRef(readOnly);
+  readOnlyRef.current = readOnly;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -104,7 +112,8 @@ export function MapCanvas({
         );
       }
       hoveredIso = iso;
-      map.getCanvas().style.cursor = iso ? "pointer" : "";
+      map.getCanvas().style.cursor =
+        iso && !readOnlyRef.current ? "pointer" : "";
       onHoverRef.current?.(iso);
     };
 
@@ -116,6 +125,7 @@ export function MapCanvas({
     map.on("mousemove", LAYER_FILL, (event) => setHovered(featureIso(event)));
     map.on("mouseleave", LAYER_FILL, () => setHovered(null));
     map.on("click", LAYER_FILL, (event) => {
+      if (readOnlyRef.current) return;
       const iso = featureIso(event);
       if (iso) onClickRef.current?.(iso);
     });

@@ -14,13 +14,25 @@ import {
 
 import { PrismaService } from "../../prisma/prisma.service";
 import { toMeResponse } from "../auth/auth.service";
+import { ProfileCacheService } from "../profile-cache/profile-cache.service";
 
 @Injectable()
 export class UsersService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly cache: ProfileCacheService,
+  ) {}
 
-  /** Claim a username and/or change the display name. 409 when taken. */
+  /**
+   * Claim a username and/or change the display name. 409 when taken.
+   * Invalidates the cached profile/stats — for the old username too when
+   * it changes, so the stale handle stops resolving immediately.
+   */
   async updateMe(userId: string, input: UpdateMeInput): Promise<MeResponse> {
+    const before = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { username: true },
+    });
     try {
       const user = await this.prisma.user.update({
         where: { id: userId },
@@ -31,6 +43,7 @@ export class UsersService {
             : {}),
         },
       });
+      await this.cache.invalidate(before?.username, user.username);
       return toMeResponse(user);
     } catch (error) {
       if (
@@ -49,12 +62,20 @@ export class UsersService {
     }
   }
 
-  /** Public profile by username (citext = case-insensitive). 404 if hidden. */
+  /**
+   * Public profile by username (citext = case-insensitive), cache-aside
+   * under `profile:{username}`. 404 if unknown, unclaimed or hidden —
+   * misses are never cached.
+   */
   async publicProfile(rawUsername: string): Promise<PublicProfile> {
     const username = rawUsername.toLowerCase();
     if (!usernameSchema.safeParse(username).success) {
       throw new NotFoundException("User not found");
     }
+
+    const key = this.cache.profileKey(username);
+    const cached = await this.cache.read<PublicProfile>(key);
+    if (cached) return cached;
 
     const user = await this.prisma.user.findFirst({
       where: { username },
@@ -71,7 +92,7 @@ export class UsersService {
     }
 
     const countryCodes = user.visitedCountries.map((v) => v.countryCode);
-    return {
+    const profile: PublicProfile = {
       username: user.username,
       displayName: user.displayName,
       avatarUrl: user.avatarUrl,
@@ -82,5 +103,7 @@ export class UsersService {
         following: user._count.following,
       },
     };
+    await this.cache.write(key, profile);
+    return profile;
   }
 }

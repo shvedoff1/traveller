@@ -153,4 +153,40 @@ describe("MapCanvas", () => {
     expect(onCountryHover).toHaveBeenLastCalledWith(null);
     expect(map.getCanvas().style.cursor).toBe("");
   });
+
+  it("readonly: ignores clicks and skips the pointer cursor, keeps hover", () => {
+    const onCountryClick = vi.fn();
+    const onCountryHover = vi.fn();
+    render(
+      <MapCanvas
+        visited={["FR"]}
+        selected={null}
+        readonly
+        onCountryClick={onCountryClick}
+        onCountryHover={onCountryHover}
+      />,
+    );
+    const map = lastMap();
+
+    // Hover still highlights via feature-state, but no pointer cursor.
+    map.fire(
+      "mousemove",
+      { features: [{ id: "FR", properties: { iso: "FR" } }] },
+      LAYER_FILL,
+    );
+    expect(onCountryHover).toHaveBeenLastCalledWith("FR");
+    expect(map.featureStateCalls).toEqual([{ method: "set", id: "FR" }]);
+    expect(map.getCanvas().style.cursor).toBe("");
+
+    // Clicks never reach the handler.
+    map.fire(
+      "click",
+      { features: [{ id: "FR", properties: { iso: "FR" } }] },
+      LAYER_FILL,
+    );
+    expect(onCountryClick).not.toHaveBeenCalled();
+
+    // Visited filter still applied.
+    expect(map.filters.get(LAYER_VISITED)).toEqual(buildVisitedFilter(["FR"]));
+  });
 });
