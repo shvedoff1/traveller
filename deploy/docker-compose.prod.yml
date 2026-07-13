@@ -1,0 +1,103 @@
+# Production stack for traveller.shvedov.tech — deployed to /srv/traveller.
+#
+# postgres + redis stay on an internal-only network; api + web additionally
+# join the external `shvedov_edge` network (owned by the blog's Caddy stack)
+# under stable aliases so Caddy can reverse-proxy to them. Nothing publishes a
+# host port — Caddy is the only ingress.
+#
+# Images are pulled from GHCR by tag (the deploy workflow pins TAG=sha-<short>).
+# The api entrypoint runs `prisma migrate deploy` on boot, so no manual step.
+#
+#   cd /srv/traveller && TAG=sha-abc1234 docker compose pull && docker compose up -d
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-traveller}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-traveller}
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-traveller}"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--save", "", "--appendonly", "no"]
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+
+  api:
+    image: ghcr.io/shvedoff1/traveller-api:${TAG:-latest}
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      internal: {}
+      edge:
+        aliases:
+          - traveller-api
+    healthcheck:
+      # Node 22 ships a global fetch; the health route is excluded from the
+      # /api prefix so infra can probe it directly.
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:4000/healthz').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+
+  web:
+    image: ghcr.io/shvedoff1/traveller-web:${TAG:-latest}
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      - api
+    networks:
+      internal: {}
+      edge:
+        aliases:
+          - traveller-web
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:3000/').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 30s
+
+volumes:
+  pg_data:
+
+networks:
+  # Postgres/Redis live here only — no route off the host.
+  internal:
+    driver: bridge
+    internal: true
+  # Shared with the blog stack's Caddy; created out-of-band (see DEPLOY.md).
+  edge:
+    external: true
+    name: shvedov_edge
