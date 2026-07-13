@@ -43,9 +43,23 @@ export async function createTestContext(
 ): Promise<TestContext> {
   const mailbox: CapturedMail[] = [];
 
+  // Every suite shares supertest's 127.0.0.1, so the per-IP + global
+  // magic-link caps would trip across unrelated logins. Raise them (and the
+  // global request budget) by default; the dedicated suites override the
+  // specific layer they exercise back down to a tiny value.
   const limits: RateLimits = {
     ...DEFAULT_RATE_LIMITS,
     global: { ...DEFAULT_RATE_LIMITS.global, max: 10_000 },
+    magicLinkIp: { ...DEFAULT_RATE_LIMITS.magicLinkIp, max: 10_000 },
+    magicLinkEmailDaily: {
+      ...DEFAULT_RATE_LIMITS.magicLinkEmailDaily,
+      max: 10_000,
+    },
+    magicLinkIpDaily: { ...DEFAULT_RATE_LIMITS.magicLinkIpDaily, max: 10_000 },
+    magicLinkGlobalDaily: {
+      ...DEFAULT_RATE_LIMITS.magicLinkGlobalDaily,
+      max: 10_000,
+    },
     ...rateLimits,
   };
 

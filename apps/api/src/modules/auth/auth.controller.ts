@@ -51,8 +51,12 @@ export class AuthController {
   @HttpCode(200)
   async requestMagicLink(
     @Body(new ZodValidationPipe(magicLinkRequestSchema)) body: MagicLinkRequest,
+    @Req() request: AuthenticatedRequest,
   ): Promise<MagicLinkResponse> {
-    await this.authService.requestMagicLink(body.email);
+    // `req.ip` honours Express "trust proxy" (main.ts sets it when
+    // TRUST_PROXY=true), so behind Caddy this is the real client IP.
+    const ip = request.ip ?? request.socket?.remoteAddress ?? "unknown";
+    await this.authService.requestMagicLink(body.email, ip, body.website);
     return { ok: true };
   }
 

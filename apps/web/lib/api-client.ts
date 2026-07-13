@@ -113,10 +113,14 @@ export const api = {
   getProviders: (): Promise<AuthProviders> =>
     requestJson(authProvidersSchema, "/auth/providers"),
 
-  requestMagicLink: (email: string): Promise<MagicLinkResponse> =>
+  requestMagicLink: (input: {
+    email: string;
+    /** Honeypot — real users leave this empty; forwarded for bot detection. */
+    website?: string;
+  }): Promise<MagicLinkResponse> =>
     requestJson(magicLinkResponseSchema, "/auth/magic-link", {
       method: "POST",
-      body: { email },
+      body: { email: input.email, website: input.website ?? "" },
     }),
 
   /** Current user, or null when not logged in (after one refresh attempt). */

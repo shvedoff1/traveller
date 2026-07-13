@@ -11,6 +11,12 @@ export const emailSchema = z
 /** POST /auth/magic-link request body. */
 export const magicLinkRequestSchema = z.object({
   email: emailSchema,
+  /**
+   * Honeypot: a hidden field real users never fill. Kept optional (not
+   * stripped) so the server can detect bots that populate it and silently
+   * skip the send. Legitimate clients omit it or send an empty string.
+   */
+  website: z.string().optional(),
 });
 export type MagicLinkRequest = z.infer<typeof magicLinkRequestSchema>;
 

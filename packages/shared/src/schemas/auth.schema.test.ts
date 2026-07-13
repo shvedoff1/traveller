@@ -35,6 +35,12 @@ describe("magicLinkRequestSchema", () => {
   it("rejects a missing email", () => {
     expect(magicLinkRequestSchema.safeParse({}).success).toBe(false);
   });
+
+  it("preserves the honeypot field for server-side detection", () => {
+    expect(
+      magicLinkRequestSchema.parse({ email: "a@example.com", website: "spam" }),
+    ).toEqual({ email: "a@example.com", website: "spam" });
+  });
 });
 
 describe("authProvidersSchema", () => {
