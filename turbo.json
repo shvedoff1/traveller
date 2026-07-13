@@ -35,6 +35,19 @@
     },
     "test": {
       "dependsOn": ["^build"]
+    },
+    "api#db:generate": {
+      "cache": false
+    },
+    "api#build": {
+      "dependsOn": ["^build", "api#db:generate"],
+      "outputs": ["dist/**"]
+    },
+    "api#typecheck": {
+      "dependsOn": ["^build", "api#db:generate"]
+    },
+    "api#test": {
+      "dependsOn": ["^build", "api#db:generate"]
     }
   }
 }

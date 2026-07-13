@@ -8,7 +8,8 @@
     "start": "node dist/main.js",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "sh ./scripts/run-tests.sh"
+    "test": "sh ./scripts/run-tests.sh",
+    "db:generate": "prisma generate"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
