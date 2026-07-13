@@ -6,20 +6,26 @@ import { z } from "zod";
 /**
  * Environment contract, validated with zod at boot — fail fast.
  *
- * Only PORT and WEB_ORIGIN matter at this stage (both defaulted for dev);
- * DB/Redis/auth vars stay optional until tasks 01+ wire them up.
+ * DATABASE_URL, REDIS_URL and JWT_SECRET are required (auth landed in
+ * task 01); Google OAuth stays optional — the strategy only registers
+ * when GOOGLE_CLIENT_ID is set.
  */
 const envSchema = z.object({
+  NODE_ENV: z
+    .enum(["development", "test", "production"])
+    .default("development"),
   PORT: z.coerce.number().int().min(1).max(65535).default(4000),
+  /** Public base URL of this API — used to build magic-link URLs. */
+  API_URL: z.string().url().default("http://localhost:4000"),
   WEB_ORIGIN: z.string().url().default("http://localhost:3000"),
-  DATABASE_URL: z.string().optional(),
-  REDIS_URL: z.string().optional(),
-  JWT_SECRET: z.string().optional(),
+  DATABASE_URL: z.string().min(1),
+  REDIS_URL: z.string().min(1),
+  JWT_SECRET: z.string().min(1),
   GOOGLE_CLIENT_ID: z.string().optional(),
   GOOGLE_CLIENT_SECRET: z.string().optional(),
   OAUTH_CALLBACK_URL: z.string().url().optional(),
-  SMTP_HOST: z.string().optional(),
-  SMTP_PORT: z.coerce.number().int().min(1).max(65535).optional(),
+  SMTP_HOST: z.string().default("localhost"),
+  SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(1025),
   COOKIE_DOMAIN: z.string().optional(),
 });
 

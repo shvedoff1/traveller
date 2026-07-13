@@ -1,0 +1,97 @@
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [citext]
+}
+
+model User {
+  id          String   @id @default(uuid()) @db.Uuid
+  /// Claimed on first login via /welcome; format enforced in zod.
+  username    String?  @unique @db.Citext
+  displayName String
+  email       String   @unique @db.Citext
+  avatarUrl   String?
+  isPublic    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  oauthAccounts    OauthAccount[]
+  refreshTokens    RefreshToken[]
+  visitedCountries VisitedCountry[]
+  following        Follow[]         @relation("follower")
+  followers        Follow[]         @relation("followee")
+}
+
+model OauthAccount {
+  id                String   @id @default(uuid()) @db.Uuid
+  userId            String   @db.Uuid
+  provider          String
+  providerAccountId String
+  createdAt         DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model LoginToken {
+  id         String    @id @default(uuid()) @db.Uuid
+  email      String    @db.Citext
+  /// sha256 hex of the raw magic-link token; raw value only lives in the email.
+  tokenHash  String    @unique
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  @@index([email, createdAt])
+}
+
+model RefreshToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  /// sha256 hex of the raw opaque refresh token.
+  tokenHash String    @unique
+  /// Rotation chain id — reuse of a rotated token revokes the whole family.
+  familyId  String    @db.Uuid
+  expiresAt DateTime
+  revokedAt DateTime?
+  userAgent String?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+}
+
+model VisitedCountry {
+  userId      String   @db.Uuid
+  /// ISO-3166-1 alpha-2, canonical list in @traveller/shared.
+  countryCode String   @db.Char(2)
+  visitedYear Int?     @db.SmallInt
+  note        String?  @db.VarChar(280)
+  createdAt   DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([userId, countryCode])
+  @@index([countryCode])
+}
+
+model Follow {
+  followerId String   @db.Uuid
+  followeeId String   @db.Uuid
+  createdAt  DateTime @default(now())
+
+  follower User @relation("follower", fields: [followerId], references: [id], onDelete: Cascade)
+  followee User @relation("followee", fields: [followeeId], references: [id], onDelete: Cascade)
+
+  @@id([followerId, followeeId])
+  @@index([followeeId])
+}

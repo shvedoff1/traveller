@@ -1,5 +1,22 @@
 {
   "$schema": "https://turborepo.com/schema.json",
+  "globalEnv": [
+    "NODE_ENV",
+    "PORT",
+    "API_URL",
+    "WEB_ORIGIN",
+    "DATABASE_URL",
+    "REDIS_URL",
+    "JWT_SECRET",
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+    "OAUTH_CALLBACK_URL",
+    "SMTP_HOST",
+    "SMTP_PORT",
+    "COOKIE_DOMAIN",
+    "NEXT_PUBLIC_API_URL",
+    "CI"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build"],

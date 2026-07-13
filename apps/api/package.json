@@ -8,14 +8,25 @@
     "start": "node dist/main.js",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
-    "test": "jest"
+    "test": "sh ./scripts/run-tests.sh"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.1.28",
     "@nestjs/core": "^11.1.28",
+    "@nestjs/jwt": "^11.0.1",
+    "@nestjs/passport": "^11.0.5",
     "@nestjs/platform-express": "^11.1.28",
+    "@prisma/client": "^6.19.1",
+    "@traveller/shared": "workspace:*",
     "cookie-parser": "^1.4.7",
     "helmet": "^8.3.0",
+    "ioredis": "^5.9.1",
+    "nodemailer": "^7.0.12",
+    "passport": "^0.7.0",
+    "passport-google-oauth20": "^2.0.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "zod": "^3.25.76"
@@ -23,6 +34,10 @@
   "devDependencies": {
     "@nestjs/cli": "^11.0.24",
     "@nestjs/testing": "^11.1.28",
+    "@types/nodemailer": "^7.0.4",
+    "@types/passport-google-oauth20": "^2.0.16",
+    "prisma": "^6.19.1",
+    "tsx": "^4.20.6",
     "@traveller/eslint-config": "workspace:*",
     "@traveller/tsconfig": "workspace:*",
     "@types/cookie-parser": "^1.4.10",

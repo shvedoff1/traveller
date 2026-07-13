@@ -1,5 +1,3 @@
-/**
- * Barrel for zod request/response schemas. Empty for now — schemas arrive
- * with their endpoints (tasks 01+).
- */
-export {};
+/** Barrel for zod request/response schemas shared by API and web. */
+export * from "./auth.schema";
+export * from "./user.schema";
