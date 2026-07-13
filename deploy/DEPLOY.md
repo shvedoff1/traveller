@@ -3,193 +3,119 @@
 Traveller runs as its own compose stack at **`/srv/traveller`** (postgres +
 redis + api + web). TLS and routing are handled by the **existing Caddy** in
 the blog stack (`/srv/shvedov`), which already owns ports 80/443 and the
-external Docker network **`shvedov_edge`**. Traveller only needs its `api` and
-`web` containers reachable on that network under the aliases `traveller-api`
-and `traveller-web`; Caddy reverse-proxies to them.
+external Docker network **`shvedov_edge`**.
 
-Same host, same origin → cookies "just work" (no `COOKIE_DOMAIN`).
+**Split of responsibilities — so machine credentials live in exactly one place:**
 
-CI (`ci.yml`) lints/tests/builds every push. Deploy (`deploy.yml`) runs only on
-`main`: it builds + pushes both images to GHCR, then SSHes in and rolls the
-stack forward. Nothing here runs the seed — **production starts empty** and
-users self-register via magic-link login.
+- **This repo** only *builds and publishes* the two images to GHCR
+  (`.github/workflows/publish-images.yml`, `GITHUB_TOKEN` only — no SSH, no app
+  secrets here).
+- **The blog repo** *provisions and deploys*: its `deploy traveller` workflow
+  SSHes to the VPS (reusing the blog's existing `SSH_*` secrets), writes
+  `/srv/traveller`, and rolls the stack forward. All app secrets live there as
+  one base64 secret. See the blog repo's `DEPLOY-TRAVELLER.md`.
+
+You need **no direct SSH access** to go live — the blog workflow does the
+first-time provisioning too. Nothing runs the seed: **production starts empty**
+and users self-register via magic-link login.
 
 ---
 
-## 1. DNS (owner, one-time)
+## 1. DNS (one-time)
 
 Create an **A record**: `traveller.shvedov.tech` → the VPS public IP (the same
-IP the blog uses). Wait for propagation (`dig +short traveller.shvedov.tech`).
-Caddy will provision the Let's Encrypt cert automatically on first request.
+IP the blog uses). Check with `dig +short traveller.shvedov.tech`. Caddy
+provisions the Let's Encrypt cert automatically on first request.
 
 ## 2. Email provider — Resend (recommended)
 
-Magic-link login is the primary auth path, so a working SMTP sender is
-required.
+Magic-link login is the primary auth path, so a working SMTP sender is required.
 
 1. Create a [Resend](https://resend.com) account.
-2. **Add & verify the domain** `shvedov.tech` (or a subdomain like
-   `mail.shvedov.tech`): add the DKIM/SPF/MX records Resend shows to your DNS.
-   Verification must go green before sends succeed.
-3. Create an **API key** (`re_...`).
-4. Map to env (see `.env`):
-   - `SMTP_HOST=smtp.resend.com`
-   - `SMTP_PORT=465`, `SMTP_SECURE=true`
-   - `SMTP_USER=resend`
-   - `SMTP_PASS=re_...` (the API key)
-   - `MAIL_FROM=Traveller <login@shvedov.tech>` (a verified sender address)
+2. **Add & verify a domain** — recommended a subdomain like `mail.shvedov.tech`
+   (isolates sender reputation from your personal mail). Add the DKIM/SPF/MX
+   records Resend shows to your DNS; verification must go green before sends
+   succeed.
+3. Create an **API key** (`re_...`, "Sending access").
+4. These map to the env values below:
+   - `SMTP_HOST=smtp.resend.com`, `SMTP_PORT=465`, `SMTP_SECURE=true`
+   - `SMTP_USER=resend`, `SMTP_PASS=re_...`
+   - `MAIL_FROM=Traveller <login@mail.shvedov.tech>` (address on the verified domain)
 
-(Brevo works too: host `smtp-relay.brevo.com`, port `587`, `SMTP_SECURE=false`,
-user = your login, pass = an SMTP key.)
+Resend's free tier is 100 emails/day — keep `MAGIC_LINK_GLOBAL_DAILY_MAX` at or
+below that (see `.env.example`). Brevo works too: host `smtp-relay.brevo.com`,
+port `587`, `SMTP_SECURE=false`.
 
-## 3. GitHub setup
+## 3. Build the env file
 
-**Repository secrets** (Settings → Secrets and variables → Actions):
+Copy `deploy/.env.example` → a local `.env`, fill in real values:
 
-| Secret     | Value                                                        |
-| ---------- | ----------------------------------------------------------- |
-| `SSH_HOST` | VPS IP / hostname (same VM as the blog)                     |
-| `SSH_USER` | deploy user with docker access                              |
-| `SSH_KEY`  | private key whose public half is in that user's `authorized_keys` |
-
-`GITHUB_TOKEN` (automatic) pushes the images — the workflow already grants it
-`packages: write`.
-
-**GHCR image visibility.** Images publish to
-`ghcr.io/shvedoff1/traveller-api` and `…/traveller-web`. They are **private by
-default**, so the VPS must be able to pull them. Two options:
-
-- **Recommended — make the two packages public** (GitHub → your profile →
-  Packages → each package → Package settings → Change visibility → Public).
-  Then no registry login is needed on the VPS.
-- **Or keep them private and log in on the VPS** with a read-only PAT
-  (classic PAT, scope `read:packages`):
-  ```bash
-  echo "<PAT>" | docker login ghcr.io -u shvedoff1 --password-stdin
-  ```
-  The stored credential lets `docker compose pull` fetch private images.
-
-## 4. VPS preparation (one-time)
-
-```bash
-sudo mkdir -p /srv/traveller
-cd /srv/traveller
-
-# Copy the compose file from the repo, renamed to the default filename:
-#   deploy/docker-compose.prod.yml  ->  /srv/traveller/docker-compose.yml
-# (scp it, or paste it — it does not change between deploys.)
-
-# Create the environment file from the template and fill in real secrets:
-#   deploy/.env.example -> /srv/traveller/.env
-$EDITOR .env   # POSTGRES_PASSWORD + matching DATABASE_URL, JWT_SECRET, SMTP_*
-
-# The external network is owned by the blog's Caddy stack — confirm it exists:
-docker network ls | grep shvedov_edge
-# If missing (blog not up yet): docker network create shvedov_edge
-```
-
-Minimum values to set in `/srv/traveller/.env` (rest have sane defaults in the
-template):
-
-- `POSTGRES_PASSWORD` — strong random; **must match** the password embedded in
+- `POSTGRES_PASSWORD` — strong random; **must match** the password inside
   `DATABASE_URL=postgresql://traveller:<pw>@postgres:5432/traveller`.
 - `JWT_SECRET` — `openssl rand -hex 32`.
 - `SMTP_*` + `MAIL_FROM` — from step 2.
 - `API_URL=https://traveller.shvedov.tech/api`,
   `WEB_ORIGIN=https://traveller.shvedov.tech`,
   `API_INTERNAL_URL=http://traveller-api:4000`,
-  `NEXT_PUBLIC_SITE_URL=https://traveller.shvedov.tech`, `TRUST_PROXY=true`
-  (already set in the template).
+  `NEXT_PUBLIC_SITE_URL=https://traveller.shvedov.tech`, `TRUST_PROXY=true`.
 
-## 5. Caddy server block (blog repo — separate PR)
+This `.env` never gets committed — it becomes a single **base64 secret** in the
+blog repo (next step).
 
-Add this to the blog stack's `Caddyfile`. It preserves the `/api` path (the API
-serves under a real `/api` prefix — do **not** use `handle_path`, which would
-strip it and break token refresh). This block is merged in the blog repo; it is
-reproduced here verbatim for review:
+## 4. Configure the blog repo (holds the deploy credentials)
 
-```caddy
-traveller.shvedov.tech {
-	encode zstd gzip
+In **shvedoff1/blog** → Settings → Secrets and variables → Actions, add:
 
-	# API — path preserved (NOT stripped). The refresh cookie is scoped to
-	# /api/auth/refresh, so the browser-visible path must reach the API as-is.
-	handle /api/* {
-		reverse_proxy traveller-api:4000
-	}
+| Secret | Value |
+| ------ | ----- |
+| `SSH_HOST`, `SSH_USER`, `SSH_KEY` | already present (blog deploy) — reused as-is |
+| `TRAVELLER_ENV_B64` | `base64 -w0 < .env` of the file from step 3 (one line; on macOS `base64 < .env \| tr -d '\n'`) |
+| `GHCR_PAT` *(optional)* | only if you keep the images private — a `read:packages` PAT |
 
-	# Everything else → the Next.js web app.
-	handle {
-		reverse_proxy traveller-web:3000
-	}
-}
-```
+**GHCR image visibility** — the images publish to
+`ghcr.io/shvedoff1/traveller-api` and `…/traveller-web`, private by default.
+Simplest: make both packages **public** (GitHub → your profile → Packages →
+each → Package settings → Change visibility → Public), then no `GHCR_PAT` is
+needed. The images contain only app code, no secrets.
 
-After editing the Caddyfile, reload Caddy from the blog stack:
-`cd /srv/shvedov && docker compose exec caddy caddy reload --config /etc/caddy/Caddyfile`
-(or restart the caddy container).
+## 5. Caddy (already merged)
 
-## 6. First deploy
+The `traveller.shvedov.tech` server block is merged in the blog repo's
+`Caddyfile` (shvedoff1/blog#2). It preserves the `/api` path (the API serves
+under a real `/api` prefix — do not strip it, or token refresh breaks).
 
-Push to `main` (or run the **Deploy** workflow via *Actions → Deploy → Run
-workflow*). The pipeline:
+## 6. Go live
 
-1. Builds `traveller-api` + `traveller-web`, pushes `:latest` and
-   `:sha-<short>` to GHCR.
-2. SSHes to the VPS and runs, in `/srv/traveller`:
-   ```bash
-   export TAG=sha-<short>
-   docker compose pull
-   docker compose up -d        # api entrypoint runs `prisma migrate deploy`
-   docker restart $(docker ps -qf name=caddy)   # re-resolve upstream DNS
-   ```
+1. **Merge this repo's PR to `main`.** `publish-images.yml` builds and pushes
+   `traveller-api` + `traveller-web` (`:latest` + `:sha-<short>`) to GHCR.
+2. Make the two GHCR packages public (step 4) if you haven't.
+3. In the **blog repo**, run **Actions → deploy traveller → Run workflow**
+   (leave `tag` as `latest`, or pin a `sha-…`). It provisions `/srv/traveller`,
+   writes the compose + `.env`, brings the stack up (the api entrypoint runs
+   `prisma migrate deploy`), and bounces Caddy.
 
-The `TAG` pin means each deploy runs an exact, reproducible image; `latest` is
-just a convenience tag.
-
-### Manual first run (optional, to watch it come up)
-
-```bash
-cd /srv/traveller
-export TAG=latest        # or a specific sha-xxxxxxx
-docker compose pull
-docker compose up -d
-docker compose ps        # api + web should become healthy
-docker compose logs -f api    # watch "prisma migrate deploy" then "api listening"
-```
+Re-running that workflow is also how you redeploy and change env later.
 
 ## 7. Verification checklist
 
-```bash
-# API health — reachable WITHOUT the /api prefix (excluded from the prefix):
-docker exec traveller-api-1 node -e \
-  "fetch('http://127.0.0.1:4000/healthz').then(r=>r.text()).then(t=>console.log(t))"
-# -> {"status":"ok"}
-```
-
-- [ ] `https://traveller.shvedov.tech/` loads the app (valid TLS cert).
+- [ ] `https://traveller.shvedov.tech/` loads with a valid TLS cert.
 - [ ] `https://traveller.shvedov.tech/api/auth/providers` returns JSON
-      (confirms Caddy forwards `/api/*` with the path preserved).
+      (Caddy forwards `/api/*` with the path preserved).
 - [ ] **Login loop with a real email**: enter your address → receive the magic
-      link → click it → you land logged in (redirected to `/welcome` on first
-      login). This exercises SMTP **and** the refresh cookie path
-      (`/api/auth/refresh`) — the whole point of the `/api` prefix work.
+      link → click → land logged in (`/welcome` on first login). Exercises SMTP
+      **and** the `/api/auth/refresh` cookie path — the point of the `/api` prefix.
 - [ ] Mark a country, reload → it persists.
-- [ ] Public profile `https://traveller.shvedov.tech/<username>` renders SSR.
-- [ ] OG image: `https://traveller.shvedov.tech/<username>/opengraph-image`
-      returns a PNG (also check an unfurl in Slack/Twitter).
-- [ ] Seed was **not** run — the DB has only real, self-registered users.
+- [ ] Public profile `https://traveller.shvedov.tech/<username>` renders SSR;
+      `…/<username>/opengraph-image` returns a PNG.
+- [ ] The DB has only real, self-registered users (no seed in prod).
 
 ## 8. Operations
 
-- **Redeploy**: push to `main`, or re-run the Deploy workflow.
-- **Roll back**: `cd /srv/traveller && TAG=sha-<older> docker compose up -d`
-  (images stay in GHCR; migrations are forward-only — a rollback that predates
-  a migration needs a DB-compatible tag).
-- **Logs**: `docker compose logs -f api|web`.
-- **DB backup**:
-  `docker compose exec postgres pg_dump -U traveller traveller > backup.sql`.
-- **Env change**: edit `/srv/traveller/.env`, then
-  `docker compose up -d` to recreate with the new values. Changing
-  `NEXT_PUBLIC_SITE_URL` requires a **rebuild** (it's inlined at build time),
-  not just a restart.
+- **Redeploy / change env**: update `TRAVELLER_ENV_B64` if needed, then re-run
+  the blog's `deploy traveller` workflow.
+- **Roll back**: run the workflow with an older `sha-…` tag (images stay in
+  GHCR; migrations are forward-only).
+- **Logs / DB backup** (needs SSH, when you have it): `docker compose logs -f
+  api|web`; `docker compose exec postgres pg_dump -U traveller traveller > backup.sql`.
+- Changing `NEXT_PUBLIC_SITE_URL` requires a **rebuild** (inlined at build time
+  in the web image), i.e. a new publish + deploy, not just an env change.

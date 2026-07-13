@@ -1,8 +1,12 @@
-name: Deploy
+name: Publish images
 
-# Build the two images, push them to GHCR, then SSH to the VPS and roll the
-# /srv/traveller stack forward to the freshly-built tag. Kept separate from
-# ci.yml (which lints/tests/builds on every push) — this only runs for main.
+# Build the api + web images and push them to GHCR. That is ALL this repo does
+# for deployment — it holds no deploy/SSH/app secrets. Rolling the VPS forward
+# is driven from the blog repo's "deploy traveller" workflow (which owns the
+# SSH access), so the machine credentials live in exactly one place.
+#
+# Kept separate from ci.yml (lint/test/build on every push); this runs only on
+# main and on manual dispatch.
 
 on:
   push:
@@ -10,7 +14,7 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: deploy
+  group: publish-images
   cancel-in-progress: false
 
 env:
@@ -68,35 +72,3 @@ jobs:
             NEXT_PUBLIC_SITE_URL=${{ env.SITE_URL }}
           cache-from: type=gha,scope=traveller-${{ matrix.app }}
           cache-to: type=gha,mode=max,scope=traveller-${{ matrix.app }}
-
-  deploy:
-    needs: build
-    if: github.ref == 'refs/heads/main'
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
-    steps:
-      - name: Resolve short SHA
-        id: sha
-        run: echo "short=sha-$(echo "${GITHUB_SHA}" | cut -c1-7)" >> "$GITHUB_OUTPUT"
-
-      - name: Deploy over SSH
-        uses: appleboy/ssh-action@v1
-        with:
-          host: ${{ secrets.SSH_HOST }}
-          username: ${{ secrets.SSH_USER }}
-          key: ${{ secrets.SSH_KEY }}
-          envs: TAG
-          script: |
-            set -euo pipefail
-            cd /srv/traveller
-            export TAG="${TAG}"
-            echo "Deploying traveller @ ${TAG}"
-            docker compose pull
-            docker compose up -d
-            # Caddy (in the blog stack) caches upstream DNS — bounce it so it
-            # re-resolves the recreated traveller-api/traveller-web containers.
-            docker restart "$(docker ps -qf name=caddy)" 2>/dev/null || \
-              echo "no caddy container found — skipping bounce"
-            docker image prune -f
-        env:
-          TAG: ${{ steps.sha.outputs.short }}
