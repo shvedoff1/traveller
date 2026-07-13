@@ -1,0 +1,15 @@
+# Build context = repo root (pnpm workspace). Keep it lean.
+.git
+.turbo
+**/node_modules
+**/dist
+**/.next
+**/.turbo
+**/test-results
+**/playwright-report
+**/coverage
+docs
+*.log
+.env
+.env.*
+!.env.example

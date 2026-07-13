@@ -1,0 +1,118 @@
+"use client";
+
+import { useQuery } from "@tanstack/react-query";
+import Link from "next/link";
+import { useEffect, useState } from "react";
+
+import { api } from "../../lib/api-client";
+import { FollowButton } from "../social/FollowButton";
+
+const COPIED_TOAST_MS = 2000;
+
+/**
+ * Floating profile card: avatar, display name, @username and a share
+ * button that copies the public URL (with a subtle toast). When the
+ * logged-in viewer is the owner, an "Edit your map" link points home;
+ * everyone else sees the follow button (login CTA when logged out).
+ */
+export function ProfileHeader({
+  username,
+  displayName,
+  avatarUrl,
+  countryCount = 0,
+}: {
+  username: string;
+  displayName: string;
+  avatarUrl: string | null;
+  countryCount?: number;
+}) {
+  const { data: me } = useQuery({ queryKey: ["me"], queryFn: api.getMe });
+  const isOwner = me?.username === username;
+
+  const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return;
+    const timer = setTimeout(() => setCopied(false), COPIED_TOAST_MS);
+    return () => clearTimeout(timer);
+  }, [copied]);
+
+  async function share() {
+    try {
+      await navigator.clipboard.writeText(window.location.href);
+      setCopied(true);
+    } catch {
+      // Clipboard unavailable (permissions/insecure context) — no toast.
+    }
+  }
+
+  return (
+    <section
+      aria-label="Profile"
+      data-testid="profile-header"
+      className="animate-rise absolute left-4 top-16 z-20 w-[min(18rem,calc(100vw-2rem))] rounded-2xl border border-edge bg-surface p-4 shadow-2xl backdrop-blur-xl"
+    >
+      <div className="flex items-center gap-3">
+        {avatarUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            src={avatarUrl}
+            alt=""
+            className="size-12 rounded-full object-cover"
+          />
+        ) : (
+          <span
+            aria-hidden
+            className="flex size-12 items-center justify-center rounded-full bg-surface-strong text-lg font-semibold uppercase"
+          >
+            {displayName.slice(0, 1)}
+          </span>
+        )}
+        <div className="min-w-0">
+          <h1
+            className="truncate text-lg font-semibold tracking-tight"
+            data-testid="profile-name"
+          >
+            {displayName}
+          </h1>
+          <p className="truncate text-sm text-muted" data-testid="profile-username">
+            @{username}
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-4 flex items-center gap-2">
+        <button
+          type="button"
+          onClick={share}
+          data-testid="share-button"
+          className="rounded-full bg-surface-strong px-3 py-1.5 text-sm font-medium transition-colors duration-200 ease-out hover:bg-edge-strong max-md:min-h-11"
+        >
+          Share
+        </button>
+        {isOwner ? (
+          <Link
+            href="/"
+            data-testid="edit-map-link"
+            className="rounded-full px-3 py-1.5 text-sm text-muted underline-offset-4 transition-colors duration-200 ease-out hover:text-foreground hover:underline max-md:min-h-11 max-md:content-center"
+          >
+            Edit your map →
+          </Link>
+        ) : (
+          <FollowButton
+            user={{ username, displayName, avatarUrl, countryCount }}
+          />
+        )}
+      </div>
+
+      {copied ? (
+        <p
+          role="status"
+          data-testid="share-toast"
+          className="mt-3 text-xs text-muted"
+        >
+          Link copied to clipboard
+        </p>
+      ) : null}
+    </section>
+  );
+}

@@ -1,0 +1,54 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "globalEnv": [
+    "NODE_ENV",
+    "PORT",
+    "API_URL",
+    "WEB_ORIGIN",
+    "DATABASE_URL",
+    "REDIS_URL",
+    "JWT_SECRET",
+    "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+    "OAUTH_CALLBACK_URL",
+    "SMTP_HOST",
+    "SMTP_PORT",
+    "COOKIE_DOMAIN",
+    "TRUST_PROXY",
+    "NEXT_PUBLIC_API_URL",
+    "CI"
+  ],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": ["dist/**", ".next/**", "!.next/cache/**"]
+    },
+    "dev": {
+      "cache": false,
+      "persistent": true
+    },
+    "lint": {},
+    "typecheck": {
+      "dependsOn": ["^build"]
+    },
+    "web#typecheck": {
+      "dependsOn": ["^build", "build"]
+    },
+    "test": {
+      "dependsOn": ["^build"]
+    },
+    "api#db:generate": {
+      "cache": false
+    },
+    "api#build": {
+      "dependsOn": ["^build", "api#db:generate"],
+      "outputs": ["dist/**"]
+    },
+    "api#typecheck": {
+      "dependsOn": ["^build", "api#db:generate"]
+    },
+    "api#test": {
+      "dependsOn": ["^build", "api#db:generate"]
+    }
+  }
+}
