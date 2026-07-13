@@ -3,9 +3,16 @@
 import "maplibre-gl/dist/maplibre-gl.css";
 
 import maplibregl, { type MapLayerMouseEvent } from "maplibre-gl";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { buildCompareLayerFilters } from "../../lib/map/compare";
+import {
+  nextProjection,
+  persistProjection,
+  type Projection,
+  readProjection,
+} from "../../lib/map/projection";
+import { type CountryLabel, countryLabel } from "../../lib/map/tooltip";
 import {
   buildMapStyle,
   buildSelectedFilter,
@@ -19,6 +26,8 @@ import {
   shouldIdleRotate,
 } from "../../lib/map/map-style";
 import { useThemeStore } from "../../lib/stores/theme-store";
+import { MapTooltip } from "./MapTooltip";
+import { ProjectionToggle } from "./ProjectionToggle";
 
 export interface FlyToRequest {
   center: [lng: number, lat: number];
@@ -47,8 +56,19 @@ export interface MapCanvasProps {
    * cursor, but hover highlight, zoom and pan stay enabled.
    */
   readonly?: boolean;
+  /**
+   * Render the globe ↔ flat projection toggle (bottom-right). Off by
+   * default; the public profile map opts in. Choice persists per-tab.
+   */
+  showProjectionToggle?: boolean;
   onCountryClick?: (iso: string) => void;
   onCountryHover?: (iso: string | null) => void;
+}
+
+interface TooltipState {
+  label: CountryLabel;
+  x: number;
+  y: number;
 }
 
 /**
@@ -64,12 +84,17 @@ export function MapCanvas({
   highlighted = null,
   flyTo = null,
   readonly: readOnly = false,
+  showProjectionToggle = false,
   onCountryClick,
   onCountryHover,
 }: MapCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const theme = useThemeStore((state) => state.theme);
+  const [tooltip, setTooltip] = useState<TooltipState | null>(null);
+  const [projection, setProjection] = useState<Projection>("globe");
+  const projectionRef = useRef<Projection>(projection);
+  projectionRef.current = projection;
 
   // Latest props, readable from map event handlers without re-initialising.
   const themeRef = useRef(theme);
@@ -86,6 +111,8 @@ export function MapCanvas({
   onHoverRef.current = onCountryHover;
   const readOnlyRef = useRef(readOnly);
   readOnlyRef.current = readOnly;
+  const projectionToggleRef = useRef(showProjectionToggle);
+  projectionToggleRef.current = showProjectionToggle;
 
   useEffect(() => {
     const container = containerRef.current;
@@ -109,6 +136,18 @@ export function MapCanvas({
       map.setFilter(LAYER_SELECTED, buildSelectedFilter(selectedRef.current));
     };
     map.on("load", applyFilters);
+
+    // Restore the per-tab projection choice (globe by default) once the
+    // toggle capability is enabled.
+    if (projectionToggleRef.current) {
+      const stored = readProjection(
+        typeof window === "undefined" ? null : window.sessionStorage,
+      );
+      if (stored !== "globe") {
+        map.setProjection({ type: stored });
+        setProjection(stored);
+      }
+    }
 
     // --- hover highlight via feature-state -------------------------------
     let hoveredIso: string | null = null;
@@ -137,8 +176,29 @@ export function MapCanvas({
       return typeof id === "string" && id.length === 2 ? id : null;
     };
 
-    map.on("mousemove", LAYER_FILL, (event) => setHovered(featureIso(event)));
-    map.on("mouseleave", LAYER_FILL, () => setHovered(null));
+    map.on("mousemove", LAYER_FILL, (event) => {
+      const iso = featureIso(event);
+      setHovered(iso);
+      // Name chip that follows the (mouse) cursor. Touch never fires
+      // mousemove, so this stays pointer-only.
+      if (iso) {
+        const featureName = event.features?.[0]?.properties?.name;
+        const label = countryLabel(
+          iso,
+          typeof featureName === "string" ? featureName : undefined,
+        );
+        const point = event.point;
+        setTooltip(
+          label ? { label, x: point?.x ?? 0, y: point?.y ?? 0 } : null,
+        );
+      } else {
+        setTooltip(null);
+      }
+    });
+    map.on("mouseleave", LAYER_FILL, () => {
+      setHovered(null);
+      setTooltip(null);
+    });
     map.on("click", LAYER_FILL, (event) => {
       if (readOnlyRef.current) return;
       const iso = featureIso(event);
@@ -201,6 +261,11 @@ export function MapCanvas({
       applyCompareFilters(map, visitedRef.current, friendVisitedRef.current);
       map.setFilter(LAYER_SELECTED, buildSelectedFilter(selectedRef.current));
     }
+    // setStyle resets projection to the style's default (globe); restore
+    // the active choice.
+    if (projectionRef.current !== "globe") {
+      map.setProjection({ type: projectionRef.current });
+    }
   }, [theme]);
 
   // Keep layer filters in sync with props once the style is available.
@@ -244,14 +309,36 @@ export function MapCanvas({
     map.flyTo({ center: flyTo.center, zoom: flyTo.zoom, essential: true });
   }, [flyTo]);
 
+  const toggleProjection = () => {
+    const map = mapRef.current;
+    const next = nextProjection(projectionRef.current);
+    setProjection(next);
+    map?.setProjection({ type: next });
+    persistProjection(
+      typeof window === "undefined" ? null : window.sessionStorage,
+      next,
+    );
+  };
+
   return (
-    <div
-      ref={containerRef}
-      className="h-full w-full"
-      role="application"
-      aria-label="Interactive world map"
-      data-testid="map-canvas"
-    />
+    <div className="relative h-full w-full">
+      <div
+        ref={containerRef}
+        className="h-full w-full"
+        role="application"
+        aria-label="Interactive world map"
+        data-testid="map-canvas"
+      />
+      {tooltip ? (
+        <MapTooltip x={tooltip.x} y={tooltip.y} label={tooltip.label} />
+      ) : null}
+      {showProjectionToggle ? (
+        <ProjectionToggle
+          projection={projection}
+          onToggle={toggleProjection}
+        />
+      ) : null}
+    </div>
   );
 }
 

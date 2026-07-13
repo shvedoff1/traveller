@@ -60,6 +60,13 @@ export class MockMap {
     return this;
   }
 
+  readonly setProjectionCalls: unknown[] = [];
+
+  setProjection(projection: unknown) {
+    this.setProjectionCalls.push(projection);
+    return this;
+  }
+
   getCanvas() {
     return this.canvas;
   }

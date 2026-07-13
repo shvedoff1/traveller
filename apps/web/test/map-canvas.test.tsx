@@ -27,6 +27,7 @@ describe("MapCanvas", () => {
   beforeEach(() => {
     MockMap.instances = [];
     useThemeStore.setState({ theme: "dark" });
+    sessionStorage.clear();
   });
 
   afterEach(() => {
@@ -186,19 +187,23 @@ describe("MapCanvas", () => {
     );
     const map = lastMap();
 
-    map.fire(
-      "mousemove",
-      { features: [{ id: "FR", properties: { iso: "FR" } }] },
-      LAYER_FILL,
+    act(() =>
+      map.fire(
+        "mousemove",
+        { features: [{ id: "FR", properties: { iso: "FR" } }] },
+        LAYER_FILL,
+      ),
     );
     expect(onCountryHover).toHaveBeenLastCalledWith("FR");
     expect(map.featureStateCalls).toEqual([{ method: "set", id: "FR" }]);
     expect(map.getCanvas().style.cursor).toBe("pointer");
 
-    map.fire(
-      "mousemove",
-      { features: [{ id: "DE", properties: { iso: "DE" } }] },
-      LAYER_FILL,
+    act(() =>
+      map.fire(
+        "mousemove",
+        { features: [{ id: "DE", properties: { iso: "DE" } }] },
+        LAYER_FILL,
+      ),
     );
     expect(onCountryHover).toHaveBeenLastCalledWith("DE");
     expect(map.featureStateCalls).toEqual([
@@ -207,9 +212,81 @@ describe("MapCanvas", () => {
       { method: "set", id: "DE" },
     ]);
 
-    map.fire("mouseleave", undefined, LAYER_FILL);
+    act(() => map.fire("mouseleave", undefined, LAYER_FILL));
     expect(onCountryHover).toHaveBeenLastCalledWith(null);
     expect(map.getCanvas().style.cursor).toBe("");
+  });
+
+  it("shows a country-name chip with flag on hover, clearing on leave", () => {
+    render(<MapCanvas visited={[]} selected={null} />);
+    const map = lastMap();
+    expect(screen.queryByTestId("map-tooltip")).not.toBeInTheDocument();
+
+    act(() =>
+      map.fire(
+        "mousemove",
+        {
+          features: [{ id: "FR", properties: { iso: "FR", name: "France" } }],
+          point: { x: 120, y: 80 },
+        },
+        LAYER_FILL,
+      ),
+    );
+    const chip = screen.getByTestId("map-tooltip");
+    expect(chip).toHaveTextContent("France");
+    // Flag emoji derived from the code is present.
+    expect(chip.textContent).toContain("🇫🇷");
+
+    // Falls back to the feature name for codes outside the canonical list.
+    act(() =>
+      map.fire(
+        "mousemove",
+        {
+          features: [{ id: "XK", properties: { iso: "XK", name: "Kosovo" } }],
+          point: { x: 200, y: 200 },
+        },
+        LAYER_FILL,
+      ),
+    );
+    expect(screen.getByTestId("map-tooltip")).toHaveTextContent("Kosovo");
+
+    act(() => map.fire("mouseleave", undefined, LAYER_FILL));
+    expect(screen.queryByTestId("map-tooltip")).not.toBeInTheDocument();
+  });
+
+  it("renders the projection toggle only when enabled and flips projection", () => {
+    const { rerender } = render(<MapCanvas visited={[]} selected={null} />);
+    expect(screen.queryByTestId("projection-toggle")).not.toBeInTheDocument();
+
+    rerender(
+      <MapCanvas visited={[]} selected={null} showProjectionToggle />,
+    );
+    const button = screen.getByTestId("projection-toggle");
+    expect(button).toHaveAttribute("aria-label", "Switch to flat map");
+
+    const map = lastMap();
+    act(() => button.click());
+    expect(map.setProjectionCalls).toEqual([{ type: "mercator" }]);
+    expect(button).toHaveAttribute("aria-label", "Switch to globe view");
+    expect(sessionStorage.getItem("traveller:map-projection")).toBe("mercator");
+
+    act(() => button.click());
+    expect(map.setProjectionCalls).toEqual([
+      { type: "mercator" },
+      { type: "globe" },
+    ]);
+    expect(sessionStorage.getItem("traveller:map-projection")).toBe("globe");
+  });
+
+  it("restores a persisted flat projection on mount", () => {
+    sessionStorage.setItem("traveller:map-projection", "mercator");
+    render(<MapCanvas visited={[]} selected={null} showProjectionToggle />);
+    const map = lastMap();
+    expect(map.setProjectionCalls).toEqual([{ type: "mercator" }]);
+    expect(screen.getByTestId("projection-toggle")).toHaveAttribute(
+      "aria-label",
+      "Switch to globe view",
+    );
   });
 
   it("readonly: ignores clicks and skips the pointer cursor, keeps hover", () => {
@@ -227,10 +304,12 @@ describe("MapCanvas", () => {
     const map = lastMap();
 
     // Hover still highlights via feature-state, but no pointer cursor.
-    map.fire(
-      "mousemove",
-      { features: [{ id: "FR", properties: { iso: "FR" } }] },
-      LAYER_FILL,
+    act(() =>
+      map.fire(
+        "mousemove",
+        { features: [{ id: "FR", properties: { iso: "FR" } }] },
+        LAYER_FILL,
+      ),
     );
     expect(onCountryHover).toHaveBeenLastCalledWith("FR");
     expect(map.featureStateCalls).toEqual([{ method: "set", id: "FR" }]);
