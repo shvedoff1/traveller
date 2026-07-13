@@ -17,11 +17,22 @@ import {
   shouldIdleRotate,
 } from "../../lib/map/map-style";
 
+export interface FlyToRequest {
+  center: [lng: number, lat: number];
+  zoom: number;
+  /** Changes on every request so repeat targets still animate. */
+  id: number;
+}
+
 export interface MapCanvasProps {
   /** ISO codes rendered with the visited accent fill. */
   visited: readonly string[];
   /** ISO code rendered with the selected outline. */
   selected: string | null;
+  /** ISO code highlighted from outside the map (e.g. panel row hover). */
+  highlighted?: string | null;
+  /** One-shot camera move (e.g. picking a country in the panel). */
+  flyTo?: FlyToRequest | null;
   onCountryClick?: (iso: string) => void;
   onCountryHover?: (iso: string | null) => void;
 }
@@ -35,6 +46,8 @@ export interface MapCanvasProps {
 export function MapCanvas({
   visited,
   selected,
+  highlighted = null,
+  flyTo = null,
   onCountryClick,
   onCountryHover,
 }: MapCanvasProps) {
@@ -160,6 +173,34 @@ export function MapCanvas({
     if (!map || !map.getLayer(LAYER_SELECTED)) return;
     map.setFilter(LAYER_SELECTED, buildSelectedFilter(selected));
   }, [selected]);
+
+  // External hover (panel rows) drives the same `hover` feature-state as
+  // the mouse, so rows light countries up exactly like pointing at them.
+  const previousHighlightedRef = useRef<string | null>(null);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map) return;
+    const previous = previousHighlightedRef.current;
+    if (previous !== null && previous !== highlighted) {
+      map.removeFeatureState(
+        { source: COUNTRIES_SOURCE, id: previous },
+        "hover",
+      );
+    }
+    if (highlighted !== null) {
+      map.setFeatureState(
+        { source: COUNTRIES_SOURCE, id: highlighted },
+        { hover: true },
+      );
+    }
+    previousHighlightedRef.current = highlighted;
+  }, [highlighted]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !flyTo) return;
+    map.flyTo({ center: flyTo.center, zoom: flyTo.zoom, essential: true });
+  }, [flyTo]);
 
   return (
     <div

@@ -11,10 +11,16 @@
  *      features shaped { id: iso2, properties: { iso, name } }.
  *   5. Generate packages/shared/src/world-paths.ts — equirectangular SVG
  *      path per country (viewBox 0 0 1000 500) for OG images.
- *   6. Fail loudly if the GeoJSON and COUNTRIES diverge beyond the
+ *   6. Generate packages/shared/src/country-centroids.ts — [lng, lat, zoom]
+ *      per country (for map flyTo), derived from the committed GeoJSON with
+ *      hand-picked fallbacks for territories that have no own geometry.
+ *   7. Fail loudly if the GeoJSON and COUNTRIES diverge beyond the
  *      explicit allowlists below.
  *
  * Usage: node scripts/prepare-geo.mjs
+ *        node scripts/prepare-geo.mjs --centroids-only   # regenerate step 6
+ *                                                        # from the committed
+ *                                                        # GeoJSON, no download
  */
 
 import { execFileSync } from "node:child_process";
@@ -26,6 +32,7 @@ import { fileURLToPath } from "node:url";
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const GEOJSON_OUT = path.join(ROOT, "apps/web/public/geo/countries.geojson");
 const PATHS_OUT = path.join(ROOT, "packages/shared/src/world-paths.ts");
+const CENTROIDS_OUT = path.join(ROOT, "packages/shared/src/country-centroids.ts");
 const COUNTRIES_TS = path.join(ROOT, "packages/shared/src/countries.ts");
 
 const SOURCE_URL =
@@ -161,9 +168,167 @@ function geometryToPath(geometry) {
     .join("");
 }
 
+// --- Country centroids (for map flyTo) ---------------------------------------
+
+/**
+ * COUNTRIES codes without own geometry in the GeoJSON (see
+ * ALLOWED_MISSING_FROM_GEOJSON): hand-picked [lng, lat, zoom].
+ */
+const FALLBACK_CENTROIDS = {
+  BQ: [-68.3, 12.2, 7],
+  BV: [3.4, -54.4, 6],
+  CC: [96.87, -12.17, 7],
+  CX: [105.68, -10.45, 7],
+  GF: [-53.1, 3.9, 5.5],
+  GI: [-5.35, 36.14, 7],
+  GP: [-61.55, 16.25, 7],
+  MQ: [-61.02, 14.64, 7],
+  RE: [55.54, -21.13, 7],
+  SJ: [17.0, 78.6, 4],
+  TK: [-171.85, -9.2, 7],
+  UM: [166.64, 19.28, 6],
+  YT: [45.16, -12.83, 7],
+};
+
+/** All rings (outer + holes flattened away — outer rings only). */
+function outerRings(geometry) {
+  const polygons =
+    geometry.type === "Polygon"
+      ? [geometry.coordinates]
+      : geometry.type === "MultiPolygon"
+        ? geometry.coordinates
+        : [];
+  return polygons.map((rings) => rings[0]).filter(Boolean);
+}
+
+/**
+ * Unwrap a ring's longitudes so consecutive points never jump more than
+ * 180° — makes shoelace math work across the antimeridian (RU, FJ, US…).
+ */
+function unwrapRing(ring) {
+  const out = [];
+  let previousLon = null;
+  for (const [lon, lat] of ring) {
+    let unwrapped = lon;
+    if (previousLon !== null) {
+      while (unwrapped - previousLon > 180) unwrapped -= 360;
+      while (unwrapped - previousLon < -180) unwrapped += 360;
+    }
+    out.push([unwrapped, lat]);
+    previousLon = unwrapped;
+  }
+  return out;
+}
+
+/** Shoelace area + centroid of an unwrapped ring. */
+function ringAreaCentroid(ring) {
+  let area = 0;
+  let cx = 0;
+  let cy = 0;
+  for (let i = 0; i < ring.length; i += 1) {
+    const [x0, y0] = ring[i];
+    const [x1, y1] = ring[(i + 1) % ring.length];
+    const cross = x0 * y1 - x1 * y0;
+    area += cross;
+    cx += (x0 + x1) * cross;
+    cy += (y0 + y1) * cross;
+  }
+  area /= 2;
+  if (Math.abs(area) < 1e-9) {
+    // Degenerate speck — fall back to the vertex mean.
+    const meanX = ring.reduce((sum, [x]) => sum + x, 0) / ring.length;
+    const meanY = ring.reduce((sum, [, y]) => sum + y, 0) / ring.length;
+    return { area: 0, cx: meanX, cy: meanY, ring };
+  }
+  return { area: Math.abs(area), cx: cx / (6 * area), cy: cy / (6 * area), ring };
+}
+
+/** Wrap a longitude back into [-180, 180]. */
+function wrapLon(lon) {
+  let wrapped = lon;
+  while (wrapped > 180) wrapped -= 360;
+  while (wrapped < -180) wrapped += 360;
+  return wrapped;
+}
+
+const round2 = (value) => Math.round(value * 100) / 100;
+
+/**
+ * Centroid + suggested flyTo zoom for a feature: the area centroid of its
+ * largest outer ring, zoom derived from that ring's extent.
+ */
+function featureCentroid(geometry) {
+  const candidates = outerRings(geometry)
+    .map(unwrapRing)
+    .map(ringAreaCentroid);
+  if (candidates.length === 0) return null;
+  const largest = candidates.reduce((a, b) => (b.area > a.area ? b : a));
+
+  const lons = largest.ring.map(([lon]) => lon);
+  const lats = largest.ring.map(([, lat]) => lat);
+  const span = Math.max(
+    Math.max(...lons) - Math.min(...lons),
+    Math.max(...lats) - Math.min(...lats),
+    0.05,
+  );
+  const zoom = Math.min(7, Math.max(1, Math.log2(160 / span)));
+  return [round2(wrapLon(largest.cx)), round2(largest.cy), round2(zoom)];
+}
+
+/** Regenerate country-centroids.ts from the committed countries.geojson. */
+function writeCentroids(countryCodes) {
+  const collection = JSON.parse(readFileSync(GEOJSON_OUT, "utf8"));
+  const centroids = {};
+  for (const feature of collection.features) {
+    const iso = feature.properties.iso;
+    if (!countryCodes.has(iso)) continue;
+    const centroid = featureCentroid(feature.geometry);
+    if (centroid) centroids[iso] = centroid;
+  }
+  for (const [iso, centroid] of Object.entries(FALLBACK_CENTROIDS)) {
+    if (!centroids[iso] && countryCodes.has(iso)) centroids[iso] = centroid;
+  }
+
+  const missing = [...countryCodes].filter((code) => !centroids[code]);
+  if (missing.length > 0) {
+    fail(`No centroid for: ${missing.join(", ")} — extend FALLBACK_CENTROIDS.`);
+  }
+
+  const sortedEntries = Object.entries(centroids).sort(([a], [b]) =>
+    a.localeCompare(b),
+  );
+  const ts = [
+    "/**",
+    " * Generated by scripts/prepare-geo.mjs — do not edit by hand.",
+    " *",
+    " * Per-country [lng, lat, zoom] for map flyTo: the area centroid of the",
+    " * country's largest polygon, zoom fitted to its extent. Territories",
+    " * without own geometry in the map GeoJSON use hand-picked fallbacks.",
+    " */",
+    "",
+    "export type CountryCentroid = readonly [lng: number, lat: number, zoom: number];",
+    "",
+    "export const COUNTRY_CENTROIDS: Record<string, CountryCentroid> = {",
+    ...sortedEntries.map(
+      ([iso, [lng, lat, zoom]]) => `  ${iso}: [${lng}, ${lat}, ${zoom}],`,
+    ),
+    "};",
+    "",
+  ].join("\n");
+  writeFileSync(CENTROIDS_OUT, ts);
+  console.log(
+    `Wrote ${CENTROIDS_OUT} (${sortedEntries.length} countries)`,
+  );
+}
+
 // --- Pipeline ---------------------------------------------------------------
 
 async function main() {
+  if (process.argv.includes("--centroids-only")) {
+    writeCentroids(readCountryCodes());
+    console.log("\nprepare-geo: OK (centroids only)");
+    return;
+  }
   const countryCodes = readCountryCodes();
   const workDir = mkdtempSync(path.join(tmpdir(), "prepare-geo-"));
 
@@ -295,6 +460,8 @@ async function main() {
     writeFileSync(PATHS_OUT, ts);
     const pathsKb = (Buffer.byteLength(ts) / 1024).toFixed(0);
     console.log(`Wrote ${PATHS_OUT} (${sortedEntries.length} countries, ${pathsKb} KB)`);
+
+    writeCentroids(countryCodes);
 
     console.log("\nprepare-geo: OK");
   } finally {

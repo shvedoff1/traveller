@@ -4,10 +4,14 @@ import {
   type MeResponse,
   type PublicProfile,
   type UpdateMeInput,
+  type UpsertVisitInput,
+  type Visit,
   authProvidersSchema,
   magicLinkResponseSchema,
   meResponseSchema,
   publicProfileSchema,
+  visitListSchema,
+  visitSchema,
 } from "@traveller/shared";
 import { type ZodType } from "zod";
 
@@ -109,4 +113,21 @@ export const api = {
 
   getProfile: (username: string): Promise<PublicProfile> =>
     requestJson(publicProfileSchema, `/users/${encodeURIComponent(username)}`),
+
+  getMyVisits: (): Promise<Visit[]> =>
+    requestJson(visitListSchema, "/me/visits"),
+
+  upsertVisit: (countryCode: string, input: UpsertVisitInput): Promise<Visit> =>
+    requestJson(visitSchema, `/me/visits/${encodeURIComponent(countryCode)}`, {
+      method: "PUT",
+      body: input,
+    }),
+
+  deleteVisit: async (countryCode: string): Promise<void> => {
+    const response = await apiFetch(
+      `/me/visits/${encodeURIComponent(countryCode)}`,
+      { method: "DELETE" },
+    );
+    if (!response.ok) throw new ApiError(response.status);
+  },
 };

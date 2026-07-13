@@ -4,36 +4,47 @@ import { isCountryCode } from "@traveller/shared";
 import { useCallback } from "react";
 
 import { useMapStore } from "../../lib/stores/map-store";
+import { LoginPrompt } from "./LoginPrompt";
 import { MapCanvas } from "./MapCanvas";
+import { useMapVisits } from "./useMapVisits";
 
 /**
- * Wires the map to the UI store: clicking a country selects it and toggles
- * it in the session-local visited set (real persistence lands in task 03).
+ * Wires the map to server + UI state: clicking a country selects it and
+ * toggles its visited state through the optimistic mutation; logged-out
+ * visitors get a login CTA instead.
  */
 export function MapView() {
-  const visited = useMapStore((state) => state.visited);
   const selected = useMapStore((state) => state.selected);
+  const highlighted = useMapStore((state) => state.highlighted);
+  const flyTo = useMapStore((state) => state.flyTo);
   const setSelected = useMapStore((state) => state.setSelected);
   const setHovered = useMapStore((state) => state.setHovered);
-  const toggleVisited = useMapStore((state) => state.toggleVisited);
+  const showLoginPrompt = useMapStore((state) => state.showLoginPrompt);
+
+  const { visited, toggle, ready } = useMapVisits();
 
   const handleCountryClick = useCallback(
     (iso: string) => {
       // Ignore geometries outside the canonical list (e.g. Kosovo, which has
-      // no official ISO-3166-1 code) — they can't be persisted later.
+      // no official ISO-3166-1 code) — they can't be persisted.
       if (!isCountryCode(iso)) return;
       setSelected(iso);
-      toggleVisited(iso);
+      if (ready && !toggle(iso)) showLoginPrompt();
     },
-    [setSelected, toggleVisited],
+    [setSelected, ready, toggle, showLoginPrompt],
   );
 
   return (
-    <MapCanvas
-      visited={visited}
-      selected={selected}
-      onCountryClick={handleCountryClick}
-      onCountryHover={setHovered}
-    />
+    <>
+      <MapCanvas
+        visited={visited}
+        selected={selected}
+        highlighted={highlighted}
+        flyTo={flyTo}
+        onCountryClick={handleCountryClick}
+        onCountryHover={setHovered}
+      />
+      <LoginPrompt />
+    </>
   );
 }

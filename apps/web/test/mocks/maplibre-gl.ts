@@ -88,6 +88,13 @@ export class MockMap {
   setCenter() {
     return this;
   }
+
+  readonly flyToCalls: Array<{ center: unknown; zoom?: number }> = [];
+
+  flyTo(options: { center: unknown; zoom?: number }) {
+    this.flyToCalls.push(options);
+    return this;
+  }
 }
 
 export default { Map: MockMap };

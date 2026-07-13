@@ -74,6 +74,53 @@ describe("MapCanvas", () => {
     expect(onCountryClick).toHaveBeenCalledTimes(1);
   });
 
+  it("mirrors external highlight onto the hover feature-state", () => {
+    const { rerender } = render(
+      <MapCanvas visited={[]} selected={null} highlighted={null} />,
+    );
+    const map = lastMap();
+    expect(map.featureStateCalls).toEqual([]);
+
+    rerender(<MapCanvas visited={[]} selected={null} highlighted="FR" />);
+    expect(map.featureStateCalls).toEqual([{ method: "set", id: "FR" }]);
+
+    rerender(<MapCanvas visited={[]} selected={null} highlighted="DE" />);
+    expect(map.featureStateCalls).toEqual([
+      { method: "set", id: "FR" },
+      { method: "remove", id: "FR" },
+      { method: "set", id: "DE" },
+    ]);
+
+    rerender(<MapCanvas visited={[]} selected={null} highlighted={null} />);
+    expect(map.featureStateCalls).toEqual([
+      { method: "set", id: "FR" },
+      { method: "remove", id: "FR" },
+      { method: "set", id: "DE" },
+      { method: "remove", id: "DE" },
+    ]);
+  });
+
+  it("executes flyTo requests and re-triggers on new request ids", () => {
+    const { rerender } = render(
+      <MapCanvas visited={[]} selected={null} flyTo={null} />,
+    );
+    const map = lastMap();
+    expect(map.flyToCalls).toEqual([]);
+
+    const request = { center: [2.46, 46.61] as [number, number], zoom: 3.6 };
+    rerender(
+      <MapCanvas visited={[]} selected={null} flyTo={{ ...request, id: 1 }} />,
+    );
+    expect(map.flyToCalls).toEqual([
+      { center: request.center, zoom: request.zoom, essential: true },
+    ]);
+
+    rerender(
+      <MapCanvas visited={[]} selected={null} flyTo={{ ...request, id: 2 }} />,
+    );
+    expect(map.flyToCalls).toHaveLength(2);
+  });
+
   it("tracks hover via feature-state and pointer cursor", () => {
     const onCountryHover = vi.fn();
     render(
