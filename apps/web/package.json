@@ -14,10 +14,12 @@
     "@tanstack/react-query": "^5.90.5",
     "@traveller/shared": "workspace:*",
     "geist": "^1.7.2",
+    "maplibre-gl": "^5.24.0",
     "next": "15.5.20",
     "react": "^19.2.7",
     "react-dom": "^19.2.7",
-    "zod": "^3.25.76"
+    "zod": "^3.25.76",
+    "zustand": "^5.0.14"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4.3.2",

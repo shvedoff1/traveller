@@ -6,7 +6,10 @@ import { useRouter } from "next/navigation";
 
 import { api } from "../lib/api-client";
 
-/** Site header: wordmark plus login link or the logged-in user chip. */
+/**
+ * Floating site header: wordmark plus login link or the logged-in user chip.
+ * It overlays the page (the map underneath stays interactive around it).
+ */
 export function Header() {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -16,28 +19,35 @@ export function Header() {
   });
 
   return (
-    <header className="flex items-center justify-between border-b border-white/10 px-6 py-3">
-      <Link href="/" className="font-semibold tracking-tight">
+    <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between px-5 py-4">
+      <Link
+        href="/"
+        className="pointer-events-auto rounded-full bg-background/70 px-4 py-1.5 font-semibold tracking-tight backdrop-blur"
+      >
         Traveller
       </Link>
 
-      {isLoading ? null : me ? (
-        <UserChip
-          displayName={me.displayName}
-          username={me.username}
-          avatarUrl={me.avatarUrl}
-          onLoggedOut={() => {
-            queryClient.setQueryData(["me"], null);
-            router.push("/");
-          }}
-        />
-      ) : (
-        <Link
-          href="/login"
-          className="text-sm underline-offset-4 hover:underline"
-        >
-          Log in
-        </Link>
+      {isLoading ? null : (
+        <div className="pointer-events-auto rounded-full bg-background/70 px-4 py-1.5 backdrop-blur">
+          {me ? (
+            <UserChip
+              displayName={me.displayName}
+              username={me.username}
+              avatarUrl={me.avatarUrl}
+              onLoggedOut={() => {
+                queryClient.setQueryData(["me"], null);
+                router.push("/");
+              }}
+            />
+          ) : (
+            <Link
+              href="/login"
+              className="text-sm underline-offset-4 hover:underline"
+            >
+              Log in
+            </Link>
+          )}
+        </div>
       )}
     </header>
   );
