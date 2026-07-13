@@ -38,14 +38,18 @@ describe("ProfileHeader", () => {
     vi.clearAllMocks();
   });
 
-  it("renders name, handle and the follow placeholder for visitors", async () => {
+  it("renders name, handle and a follow login-CTA for logged-out visitors", async () => {
     renderWithQuery(
       <ProfileHeader username="john" displayName="John Carter" avatarUrl={null} />,
     );
     expect(screen.getByTestId("profile-name")).toHaveTextContent("John Carter");
     expect(screen.getByTestId("profile-username")).toHaveTextContent("@john");
+    // Logged out: the follow button is a login CTA.
     await waitFor(() =>
-      expect(screen.getByTestId("follow-button")).toBeDisabled(),
+      expect(screen.getByTestId("follow-button")).toHaveAttribute(
+        "href",
+        "/login",
+      ),
     );
     expect(screen.queryByTestId("edit-map-link")).not.toBeInTheDocument();
   });

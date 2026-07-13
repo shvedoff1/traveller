@@ -6,6 +6,7 @@ import { CsrfGuard } from "./common/csrf.guard";
 import { loadEnv } from "./config/env";
 import { MailModule } from "./mail/mail.module";
 import { AuthModule } from "./modules/auth/auth.module";
+import { FollowsModule } from "./modules/follows/follows.module";
 import { HealthModule } from "./modules/health/health.module";
 import { StatsModule } from "./modules/stats/stats.module";
 import { UsersModule } from "./modules/users/users.module";
@@ -27,6 +28,9 @@ import { RedisModule } from "./redis/redis.module";
     MailModule,
     HealthModule,
     AuthModule,
+    // Before UsersModule: `GET /users/search` must win over the
+    // `GET /users/:username` catch-all ("search" is a valid handle).
+    FollowsModule,
     UsersModule,
     VisitsModule,
     StatsModule,

@@ -68,7 +68,11 @@ test("public profile: logged-out render, share, casing redirect, OG image", asyn
   await expect(anonPage.getByTestId("stats-count")).toHaveText("1");
   await expect(anonPage.getByTestId("map-canvas")).toBeVisible();
   await expect(anonPage.getByTestId("edit-map-link")).toHaveCount(0);
-  await expect(anonPage.getByTestId("follow-button")).toBeDisabled();
+  // Logged out, the follow button is a login CTA.
+  await expect(anonPage.getByTestId("follow-button")).toHaveAttribute(
+    "href",
+    "/login",
+  );
 
   // Share button copies the public URL and shows the toast.
   await anonPage.getByTestId("share-button").click();

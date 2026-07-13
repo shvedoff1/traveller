@@ -45,5 +45,11 @@ export const publicProfileSchema = z.object({
     followers: z.number().int().nonnegative(),
     following: z.number().int().nonnegative(),
   }),
+  /**
+   * Whether the requesting user follows this profile. Only present when
+   * the request is authenticated — anonymous reads omit it (it is
+   * per-viewer and therefore never cached).
+   */
+  isFollowing: z.boolean().optional(),
 });
 export type PublicProfile = z.infer<typeof publicProfileSchema>;

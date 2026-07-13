@@ -45,6 +45,27 @@ describe("map store", () => {
     expect(useMapStore.getState().flyTo).toBeNull();
   });
 
+  it("starts and stops compare mode, one friend at a time", () => {
+    expect(useMapStore.getState().compareWith).toBeNull();
+
+    useMapStore
+      .getState()
+      .startCompare({ username: "maria", displayName: "Maria Silva" });
+    expect(useMapStore.getState().compareWith).toEqual({
+      username: "maria",
+      displayName: "Maria Silva",
+    });
+
+    // Starting again replaces the previous friend (v1: single compare).
+    useMapStore
+      .getState()
+      .startCompare({ username: "kenji", displayName: "Kenji Watanabe" });
+    expect(useMapStore.getState().compareWith?.username).toBe("kenji");
+
+    useMapStore.getState().stopCompare();
+    expect(useMapStore.getState().compareWith).toBeNull();
+  });
+
   it("shows and hides the login prompt", () => {
     useMapStore.getState().showLoginPrompt();
     expect(useMapStore.getState().loginPromptVisible).toBe(true);

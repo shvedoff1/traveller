@@ -13,6 +13,8 @@ export const COUNTRIES_DATA_URL = "/geo/countries.geojson";
 
 export const LAYER_FILL = "countries-fill";
 export const LAYER_VISITED = "countries-visited";
+export const LAYER_FRIEND = "countries-friend";
+export const LAYER_OVERLAP = "countries-overlap";
 export const LAYER_BORDER = "countries-border";
 export const LAYER_SELECTED = "countries-selected";
 
@@ -27,6 +29,12 @@ export const MAP_COLORS = {
   /** Accent for visited countries. */
   visited: "#0f9d84",
   visitedHover: "#16bda0",
+  /** Compare mode: countries only the friend has visited. */
+  friend: "#8b5cf6",
+  friendHover: "#a78bfa",
+  /** Compare mode: countries you both visited. */
+  overlap: "#d97706",
+  overlapHover: "#f59e0b",
   border: "#0b0e14",
   selectedOutline: "#5eead4",
 } as const;
@@ -119,6 +127,30 @@ export function buildMapStyle(): StyleSpecification {
           "fill-color": hoverableFill(
             MAP_COLORS.visited,
             MAP_COLORS.visitedHover,
+          ),
+        },
+      },
+      {
+        id: LAYER_FRIEND,
+        type: "fill",
+        source: COUNTRIES_SOURCE,
+        filter: buildVisitedFilter([]),
+        paint: {
+          "fill-color": hoverableFill(
+            MAP_COLORS.friend,
+            MAP_COLORS.friendHover,
+          ),
+        },
+      },
+      {
+        id: LAYER_OVERLAP,
+        type: "fill",
+        source: COUNTRIES_SOURCE,
+        filter: buildVisitedFilter([]),
+        paint: {
+          "fill-color": hoverableFill(
+            MAP_COLORS.overlap,
+            MAP_COLORS.overlapHover,
           ),
         },
       },

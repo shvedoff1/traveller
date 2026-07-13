@@ -74,6 +74,7 @@ export default async function ProfilePage({ params }: { params: Params }) {
         username={profile.username}
         displayName={profile.displayName}
         avatarUrl={profile.avatarUrl}
+        countryCount={profile.counts.countries}
       />
       <StatsPanel
         stats={worldStats}

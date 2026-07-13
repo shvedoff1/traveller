@@ -5,13 +5,15 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import maplibregl, { type MapLayerMouseEvent } from "maplibre-gl";
 import { useEffect, useRef } from "react";
 
+import { buildCompareLayerFilters } from "../../lib/map/compare";
 import {
   buildMapStyle,
   buildSelectedFilter,
-  buildVisitedFilter,
   COUNTRIES_SOURCE,
   IDLE_ROTATION_DEG_PER_SEC,
   LAYER_FILL,
+  LAYER_FRIEND,
+  LAYER_OVERLAP,
   LAYER_SELECTED,
   LAYER_VISITED,
   shouldIdleRotate,
@@ -27,6 +29,12 @@ export interface FlyToRequest {
 export interface MapCanvasProps {
   /** ISO codes rendered with the visited accent fill. */
   visited: readonly string[];
+  /**
+   * Compare mode: a friend's visited codes. When set, countries split into
+   * mine-only (visited color) / theirs-only (friend color) / both (overlap
+   * color). Null/undefined renders my map alone.
+   */
+  friendVisited?: readonly string[] | null;
   /** ISO code rendered with the selected outline. */
   selected: string | null;
   /** ISO code highlighted from outside the map (e.g. panel row hover). */
@@ -50,6 +58,7 @@ export interface MapCanvasProps {
  */
 export function MapCanvas({
   visited,
+  friendVisited = null,
   selected,
   highlighted = null,
   flyTo = null,
@@ -63,6 +72,8 @@ export function MapCanvas({
   // Latest props, readable from map event handlers without re-initialising.
   const visitedRef = useRef(visited);
   visitedRef.current = visited;
+  const friendVisitedRef = useRef(friendVisited);
+  friendVisitedRef.current = friendVisited;
   const selectedRef = useRef(selected);
   selectedRef.current = selected;
   const onClickRef = useRef(onCountryClick);
@@ -90,7 +101,7 @@ export function MapCanvas({
 
     const applyFilters = () => {
       if (!map.getLayer(LAYER_VISITED)) return;
-      map.setFilter(LAYER_VISITED, buildVisitedFilter(visitedRef.current));
+      applyCompareFilters(map, visitedRef.current, friendVisitedRef.current);
       map.setFilter(LAYER_SELECTED, buildSelectedFilter(selectedRef.current));
     };
     map.on("load", applyFilters);
@@ -175,8 +186,8 @@ export function MapCanvas({
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !map.getLayer(LAYER_VISITED)) return;
-    map.setFilter(LAYER_VISITED, buildVisitedFilter(visited));
-  }, [visited]);
+    applyCompareFilters(map, visited, friendVisited);
+  }, [visited, friendVisited]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -221,4 +232,16 @@ export function MapCanvas({
       data-testid="map-canvas"
     />
   );
+}
+
+/** Set the visited/friend/overlap fill filters from the two code lists. */
+function applyCompareFilters(
+  map: maplibregl.Map,
+  visited: readonly string[],
+  friendVisited: readonly string[] | null,
+): void {
+  const filters = buildCompareLayerFilters(visited, friendVisited);
+  map.setFilter(LAYER_VISITED, filters.visited);
+  map.setFilter(LAYER_FRIEND, filters.friend);
+  map.setFilter(LAYER_OVERLAP, filters.overlap);
 }

@@ -10,6 +10,8 @@ import {
   IDLE_ROTATION_MAX_ZOOM,
   LAYER_BORDER,
   LAYER_FILL,
+  LAYER_FRIEND,
+  LAYER_OVERLAP,
   LAYER_SELECTED,
   LAYER_VISITED,
   shouldIdleRotate,
@@ -66,14 +68,22 @@ describe("buildMapStyle", () => {
       "background",
       LAYER_FILL,
       LAYER_VISITED,
+      LAYER_FRIEND,
+      LAYER_OVERLAP,
       LAYER_BORDER,
       LAYER_SELECTED,
     ]);
   });
 
-  it("starts with no visited and no selected country", () => {
+  it("starts with no visited, compare or selected country", () => {
     const byId = new Map(style.layers.map((layer) => [layer.id, layer]));
     expect(byId.get(LAYER_VISITED)).toMatchObject({
+      filter: buildVisitedFilter([]),
+    });
+    expect(byId.get(LAYER_FRIEND)).toMatchObject({
+      filter: buildVisitedFilter([]),
+    });
+    expect(byId.get(LAYER_OVERLAP)).toMatchObject({
       filter: buildVisitedFilter([]),
     });
     expect(byId.get(LAYER_SELECTED)).toMatchObject({

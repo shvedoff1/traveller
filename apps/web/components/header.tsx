@@ -68,6 +68,13 @@ function UserChip({
 
   return (
     <div className="flex items-center gap-3" data-testid="user-chip">
+      <Link
+        href="/friends"
+        data-testid="friends-link"
+        className="text-sm underline-offset-4 hover:underline"
+      >
+        Friends
+      </Link>
       {avatarUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img

@@ -8,7 +8,7 @@ import {
 
 import { type AccessTokenPayload } from "../../common/auth.types";
 import { CurrentUser } from "../../common/current-user.decorator";
-import { JwtAuthGuard } from "../../common/jwt-auth.guard";
+import { JwtAuthGuard, OptionalAuthGuard } from "../../common/jwt-auth.guard";
 import { ZodValidationPipe } from "../../common/zod-validation.pipe";
 import { UsersService } from "./users.service";
 
@@ -26,9 +26,11 @@ export class UsersController {
   }
 
   @Get("users/:username")
+  @UseGuards(OptionalAuthGuard)
   async publicProfile(
     @Param("username") username: string,
+    @CurrentUser() viewer: AccessTokenPayload | undefined,
   ): Promise<PublicProfile> {
-    return this.usersService.publicProfile(username);
+    return this.usersService.publicProfile(username, viewer?.sub);
   }
 }

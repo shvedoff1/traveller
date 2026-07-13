@@ -6,6 +6,8 @@ import {
   buildSelectedFilter,
   buildVisitedFilter,
   LAYER_FILL,
+  LAYER_FRIEND,
+  LAYER_OVERLAP,
   LAYER_SELECTED,
   LAYER_VISITED,
 } from "../lib/map/map-style";
@@ -54,6 +56,40 @@ describe("MapCanvas", () => {
       buildVisitedFilter(["FR", "JP"]),
     );
     expect(map.filters.get(LAYER_SELECTED)).toEqual(buildSelectedFilter("JP"));
+  });
+
+  it("partitions the fills across visited/friend/overlap in compare mode", () => {
+    const { rerender } = render(
+      <MapCanvas visited={["FR", "BR"]} selected={null} />,
+    );
+    const map = lastMap();
+    // No compare: my full map, compare layers empty.
+    expect(map.filters.get(LAYER_VISITED)).toEqual(
+      buildVisitedFilter(["FR", "BR"]),
+    );
+    expect(map.filters.get(LAYER_FRIEND)).toEqual(buildVisitedFilter([]));
+    expect(map.filters.get(LAYER_OVERLAP)).toEqual(buildVisitedFilter([]));
+
+    rerender(
+      <MapCanvas
+        visited={["FR", "BR"]}
+        friendVisited={["BR", "AR"]}
+        selected={null}
+      />,
+    );
+    expect(map.filters.get(LAYER_VISITED)).toEqual(buildVisitedFilter(["FR"]));
+    expect(map.filters.get(LAYER_FRIEND)).toEqual(buildVisitedFilter(["AR"]));
+    expect(map.filters.get(LAYER_OVERLAP)).toEqual(buildVisitedFilter(["BR"]));
+
+    // Leaving compare mode restores the plain visited fill.
+    rerender(
+      <MapCanvas visited={["FR", "BR"]} friendVisited={null} selected={null} />,
+    );
+    expect(map.filters.get(LAYER_VISITED)).toEqual(
+      buildVisitedFilter(["FR", "BR"]),
+    );
+    expect(map.filters.get(LAYER_FRIEND)).toEqual(buildVisitedFilter([]));
+    expect(map.filters.get(LAYER_OVERLAP)).toEqual(buildVisitedFilter([]));
   });
 
   it("reports clicks on countries", () => {

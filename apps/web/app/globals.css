@@ -4,6 +4,8 @@
   --color-background: #0b0e14;
   --color-foreground: #e6e9ef;
   --color-muted: #8b93a7;
+  /* Matches the visited-country fill on the map. */
+  --color-accent: #0f9d84;
 }
 
 body {

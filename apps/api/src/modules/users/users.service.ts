@@ -66,9 +66,24 @@ export class UsersService {
    * Public profile by username (citext = case-insensitive), cache-aside
    * under `profile:{username}`. 404 if unknown, unclaimed or hidden —
    * misses are never cached.
+   *
+   * When `viewerId` is set (OptionalAuthGuard) the response additionally
+   * carries `isFollowing`. It is attached AFTER the cache read/write —
+   * per-viewer data must never end up in the shared cached entry.
    */
-  async publicProfile(rawUsername: string): Promise<PublicProfile> {
-    const username = rawUsername.toLowerCase();
+  async publicProfile(
+    rawUsername: string,
+    viewerId?: string,
+  ): Promise<PublicProfile> {
+    const profile = await this.cachedProfile(rawUsername.toLowerCase());
+    if (viewerId === undefined) return profile;
+    return {
+      ...profile,
+      isFollowing: await this.isFollowing(viewerId, profile.username),
+    };
+  }
+
+  private async cachedProfile(username: string): Promise<PublicProfile> {
     if (!usernameSchema.safeParse(username).success) {
       throw new NotFoundException("User not found");
     }
@@ -105,5 +120,17 @@ export class UsersService {
     };
     await this.cache.write(key, profile);
     return profile;
+  }
+
+  /** Does `viewerId` follow the user holding `username`? */
+  private async isFollowing(
+    viewerId: string,
+    username: string,
+  ): Promise<boolean> {
+    const follow = await this.prisma.follow.findFirst({
+      where: { followerId: viewerId, followee: { username } },
+      select: { followerId: true },
+    });
+    return follow !== null;
   }
 }

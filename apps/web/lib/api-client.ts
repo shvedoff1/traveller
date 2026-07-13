@@ -1,15 +1,21 @@
 import {
   type AuthProviders,
+  type FollowUser,
+  type FriendMapEntry,
   type MagicLinkResponse,
   type MeResponse,
   type PublicProfile,
   type UpdateMeInput,
   type UpsertVisitInput,
+  type UserSearchResult,
   type Visit,
   authProvidersSchema,
+  followUserListSchema,
+  friendsMapResponseSchema,
   magicLinkResponseSchema,
   meResponseSchema,
   publicProfileSchema,
+  userSearchResultListSchema,
   visitListSchema,
   visitSchema,
 } from "@traveller/shared";
@@ -130,4 +136,35 @@ export const api = {
     );
     if (!response.ok) throw new ApiError(response.status);
   },
+
+  followUser: async (username: string): Promise<void> => {
+    const response = await apiFetch(
+      `/users/${encodeURIComponent(username)}/follow`,
+      { method: "POST" },
+    );
+    if (!response.ok) throw new ApiError(response.status);
+  },
+
+  unfollowUser: async (username: string): Promise<void> => {
+    const response = await apiFetch(
+      `/users/${encodeURIComponent(username)}/follow`,
+      { method: "DELETE" },
+    );
+    if (!response.ok) throw new ApiError(response.status);
+  },
+
+  getFollowing: (): Promise<FollowUser[]> =>
+    requestJson(followUserListSchema, "/me/following"),
+
+  getFollowers: (): Promise<FollowUser[]> =>
+    requestJson(followUserListSchema, "/me/followers"),
+
+  getFriendsMap: (): Promise<FriendMapEntry[]> =>
+    requestJson(friendsMapResponseSchema, "/me/friends-map"),
+
+  searchUsers: (query: string): Promise<UserSearchResult[]> =>
+    requestJson(
+      userSearchResultListSchema,
+      `/users/search?q=${encodeURIComponent(query)}`,
+    ),
 };

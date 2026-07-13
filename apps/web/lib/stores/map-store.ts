@@ -9,6 +9,16 @@ export interface FlyToTarget {
 }
 
 /**
+ * The friend whose map is being compared with mine (one at a time, v1).
+ * Their visited codes stay server state — MapView resolves them from the
+ * `['friends-map']` query; the store only records WHO is being compared.
+ */
+export interface CompareFriend {
+  username: string;
+  displayName: string;
+}
+
+/**
  * UI state for the map. Visited countries are server state and live in
  * the `['visits','me']` TanStack Query cache (see useMapVisits) — this
  * store only holds ephemeral interaction state.
@@ -24,6 +34,8 @@ export interface MapStoreState {
   flyTo: FlyToTarget | null;
   /** Login CTA after a logged-out visitor tries to mark a country. */
   loginPromptVisible: boolean;
+  /** Friend overlaid on the main map, or null when not comparing. */
+  compareWith: CompareFriend | null;
   setSelected: (iso: string | null) => void;
   setHovered: (iso: string | null) => void;
   setHighlighted: (iso: string | null) => void;
@@ -31,6 +43,9 @@ export interface MapStoreState {
   flyToCountry: (iso: string) => void;
   showLoginPrompt: () => void;
   hideLoginPrompt: () => void;
+  /** Enter compare mode with one friend (replaces any previous one). */
+  startCompare: (friend: CompareFriend) => void;
+  stopCompare: () => void;
 }
 
 let nextFlyToId = 1;
@@ -41,6 +56,7 @@ export const useMapStore = create<MapStoreState>((set) => ({
   highlighted: null,
   flyTo: null,
   loginPromptVisible: false,
+  compareWith: null,
   setSelected: (iso) => set({ selected: iso }),
   setHovered: (iso) => set({ hovered: iso }),
   setHighlighted: (iso) => set({ highlighted: iso }),
@@ -52,4 +68,6 @@ export const useMapStore = create<MapStoreState>((set) => ({
   },
   showLoginPrompt: () => set({ loginPromptVisible: true }),
   hideLoginPrompt: () => set({ loginPromptVisible: false }),
+  startCompare: (friend) => set({ compareWith: friend }),
+  stopCompare: () => set({ compareWith: null }),
 }));

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 
 import { api } from "../../lib/api-client";
+import { FollowButton } from "../social/FollowButton";
 
 const COPIED_TOAST_MS = 2000;
 
@@ -12,16 +13,18 @@ const COPIED_TOAST_MS = 2000;
  * Floating profile card: avatar, display name, @username and a share
  * button that copies the public URL (with a subtle toast). When the
  * logged-in viewer is the owner, an "Edit your map" link points home;
- * everyone else sees the follow placeholder (wired up in task 05).
+ * everyone else sees the follow button (login CTA when logged out).
  */
 export function ProfileHeader({
   username,
   displayName,
   avatarUrl,
+  countryCount = 0,
 }: {
   username: string;
   displayName: string;
   avatarUrl: string | null;
+  countryCount?: number;
 }) {
   const { data: me } = useQuery({ queryKey: ["me"], queryFn: api.getMe });
   const isOwner = me?.username === username;
@@ -95,16 +98,9 @@ export function ProfileHeader({
             Edit your map →
           </Link>
         ) : (
-          // Placeholder until following ships (task 05).
-          <button
-            type="button"
-            disabled
-            title="Coming soon"
-            data-testid="follow-button"
-            className="rounded-full border border-white/15 px-3 py-1.5 text-sm text-muted opacity-60"
-          >
-            Follow
-          </button>
+          <FollowButton
+            user={{ username, displayName, avatarUrl, countryCount }}
+          />
         )}
       </div>
 
