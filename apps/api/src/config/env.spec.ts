@@ -59,6 +59,47 @@ describe("parseEnv", () => {
     expect(env.GOOGLE_CLIENT_SECRET).toBeUndefined();
   });
 
+  it("keeps SMTP auth optional (Mailpit dev default)", () => {
+    const env = parseEnv(REQUIRED);
+    expect(env.SMTP_USER).toBeUndefined();
+    expect(env.SMTP_PASS).toBeUndefined();
+    expect(env.SMTP_SECURE).toBe(false);
+    expect(env.MAIL_FROM).toBeUndefined();
+  });
+
+  it("parses a full SMTP config (Resend-style)", () => {
+    const env = parseEnv({
+      ...REQUIRED,
+      SMTP_HOST: "smtp.resend.com",
+      SMTP_PORT: "587",
+      SMTP_USER: "resend",
+      SMTP_PASS: "re_key",
+      SMTP_SECURE: "false",
+      MAIL_FROM: "Traveller <login@traveller.tech>",
+    });
+    expect(env.SMTP_USER).toBe("resend");
+    expect(env.SMTP_PASS).toBe("re_key");
+    expect(env.SMTP_SECURE).toBe(false);
+    expect(env.MAIL_FROM).toBe("Traveller <login@traveller.tech>");
+  });
+
+  it("requires SMTP_USER and SMTP_PASS together", () => {
+    expect(() => parseEnv({ ...REQUIRED, SMTP_USER: "resend" })).toThrow(
+      /SMTP_PASS/,
+    );
+    expect(() => parseEnv({ ...REQUIRED, SMTP_PASS: "secret" })).toThrow(
+      /SMTP_USER/,
+    );
+  });
+
+  it("applies defaults for the magic-link anti-abuse caps", () => {
+    const env = parseEnv(REQUIRED);
+    expect(env.MAGIC_LINK_IP_MAX).toBe(5);
+    expect(env.MAGIC_LINK_EMAIL_DAILY_MAX).toBe(10);
+    expect(env.MAGIC_LINK_IP_DAILY_MAX).toBe(20);
+    expect(env.MAGIC_LINK_GLOBAL_DAILY_MAX).toBe(200);
+  });
+
   it("parses TRUST_PROXY as a boolean, defaulting to false", () => {
     expect(parseEnv(REQUIRED).TRUST_PROXY).toBe(false);
     expect(parseEnv({ ...REQUIRED, TRUST_PROXY: "true" }).TRUST_PROXY).toBe(

@@ -26,12 +26,44 @@ const envSchema = z.object({
   OAUTH_CALLBACK_URL: z.string().url().optional(),
   SMTP_HOST: z.string().default("localhost"),
   SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(1025),
+  /** SMTP auth — optional in dev (Mailpit needs none). Required together. */
+  SMTP_USER: z.string().optional(),
+  SMTP_PASS: z.string().optional(),
+  /** true → implicit TLS (port 465); false → plaintext/STARTTLS (587/1025). */
+  SMTP_SECURE: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
+  /** From header for outgoing mail, e.g. `Traveller <login@example.com>`. */
+  MAIL_FROM: z.string().optional(),
   COOKIE_DOMAIN: z.string().optional(),
+  /** Anti-abuse caps on POST /auth/magic-link (per 15 min / 24 h windows). */
+  MAGIC_LINK_IP_MAX: z.coerce.number().int().min(1).default(5),
+  MAGIC_LINK_EMAIL_DAILY_MAX: z.coerce.number().int().min(1).default(10),
+  MAGIC_LINK_IP_DAILY_MAX: z.coerce.number().int().min(1).default(20),
+  MAGIC_LINK_GLOBAL_DAILY_MAX: z.coerce.number().int().min(1).default(200),
   /** Set to true when the API runs behind a reverse proxy (X-Forwarded-For). */
   TRUST_PROXY: z
     .enum(["true", "false"])
     .default("false")
     .transform((value) => value === "true"),
+}).superRefine((env, ctx) => {
+  // SMTP credentials are all-or-nothing: a user without a password (or vice
+  // versa) is a misconfiguration we want to catch at boot, not at send time.
+  if (env.SMTP_USER && !env.SMTP_PASS) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["SMTP_PASS"],
+      message: "SMTP_PASS is required when SMTP_USER is set",
+    });
+  }
+  if (env.SMTP_PASS && !env.SMTP_USER) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ["SMTP_USER"],
+      message: "SMTP_USER is required when SMTP_PASS is set",
+    });
+  }
 });
 
 export type Env = z.infer<typeof envSchema>;
