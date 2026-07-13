@@ -10,6 +10,7 @@ import {
   useFollowing,
   useUserSearch,
 } from "../../lib/social/use-follow";
+import { FriendCardSkeleton, Skeleton } from "../ui/Skeleton";
 import { FriendCard } from "./FriendCard";
 
 const SEARCH_DEBOUNCE_MS = 300;
@@ -41,11 +42,27 @@ export function FriendsScreen() {
     [following.data],
   );
 
-  if (meLoading) return null;
+  if (meLoading) {
+    return (
+      <section
+        aria-busy="true"
+        data-testid="friends-skeleton"
+        className="mx-auto w-full max-w-xl px-4 pb-16 pt-20"
+      >
+        <Skeleton className="h-7 w-28" />
+        <Skeleton className="mt-4 h-10 w-full rounded-full" />
+        <ul className="mt-5 space-y-2">
+          <FriendCardSkeleton />
+          <FriendCardSkeleton />
+          <FriendCardSkeleton />
+        </ul>
+      </section>
+    );
+  }
 
   if (!me) {
     return (
-      <section className="mx-auto mt-24 w-full max-w-md rounded-2xl border border-white/10 bg-white/5 p-6 text-center">
+      <section className="mx-auto mt-24 w-full max-w-md rounded-2xl border border-edge bg-surface p-6 text-center">
         <h1 className="text-lg font-semibold">Friends</h1>
         <p className="mt-2 text-sm text-muted">
           Log in to find friends and compare maps.
@@ -53,7 +70,7 @@ export function FriendsScreen() {
         <Link
           href="/login"
           data-testid="friends-login-cta"
-          className="mt-4 inline-block rounded-full bg-white/10 px-4 py-1.5 text-sm font-medium hover:bg-white/20"
+          className="mt-4 inline-block rounded-full bg-surface-strong px-4 py-1.5 text-sm font-medium transition-colors duration-200 ease-out hover:bg-edge-strong"
         >
           Log in
         </Link>
@@ -74,11 +91,12 @@ export function FriendsScreen() {
         onChange={(event) => setQuery(event.target.value)}
         placeholder="Search travellers by name or @username"
         data-testid="friend-search"
-        className="mt-4 w-full rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm outline-none placeholder:text-muted focus:border-white/30"
+        className="mt-4 min-h-11 w-full rounded-full border border-edge bg-surface px-4 py-2 text-sm transition-colors duration-200 ease-out placeholder:text-muted focus:border-edge-strong focus:outline-none"
       />
 
       {searching ? (
         <ul data-testid="search-results" className="mt-4 space-y-2">
+          {search.isLoading ? <FriendCardSkeleton /> : null}
           {(search.data ?? []).map((row) => (
             <FriendCard
               key={row.username}
@@ -115,6 +133,12 @@ export function FriendsScreen() {
           </div>
 
           <ul data-testid={`${tab}-list`} className="mt-4 space-y-2">
+            {activeList.isLoading ? (
+              <>
+                <FriendCardSkeleton />
+                <FriendCardSkeleton />
+              </>
+            ) : null}
             {(activeList.data ?? []).map((user) => (
               <FriendCard
                 key={user.username}
@@ -161,8 +185,8 @@ function TabButton({
       aria-selected={active}
       data-testid={`tab-${id}`}
       onClick={() => onSelect(id)}
-      className={`rounded-full px-4 py-1.5 text-sm font-medium ${
-        active ? "bg-white/15" : "text-muted hover:bg-white/5"
+      className={`min-h-9 rounded-full px-4 py-1.5 text-sm font-medium transition-colors duration-200 ease-out max-md:min-h-11 ${
+        active ? "bg-surface-strong" : "text-muted hover:bg-surface"
       }`}
     >
       {children}

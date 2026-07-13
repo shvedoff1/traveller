@@ -32,6 +32,26 @@ export class ApiError extends Error {
     super(message ?? `API request failed with status ${status}`);
     this.name = "ApiError";
   }
+
+  /** True when the request never reached the API (offline, DNS, CORS). */
+  get isNetworkError(): boolean {
+    return this.status === 0;
+  }
+}
+
+export const NETWORK_ERROR_MESSAGE =
+  "Can’t reach the server — check your connection and try again.";
+
+/**
+ * `fetch` that converts transport failures (offline, DNS, aborted) into a
+ * typed ApiError with status 0, so callers never see a bare TypeError.
+ */
+async function safeFetch(input: string, init: RequestInit): Promise<Response> {
+  try {
+    return await fetch(input, init);
+  } catch {
+    throw new ApiError(0, NETWORK_ERROR_MESSAGE);
+  }
 }
 
 interface FetchOptions {
@@ -62,19 +82,19 @@ export async function apiFetch(
   path: string,
   options: FetchOptions = {},
 ): Promise<Response> {
-  const response = await fetch(`${API_BASE}${path}`, buildInit(options));
+  const response = await safeFetch(`${API_BASE}${path}`, buildInit(options));
   if (response.status !== 401 || path === "/auth/refresh") {
     return response;
   }
 
-  const refreshed = await fetch(
+  const refreshed = await safeFetch(
     `${API_BASE}/auth/refresh`,
     buildInit({ method: "POST" }),
   );
   if (!refreshed.ok) {
     return response; // original 401 stands
   }
-  return fetch(`${API_BASE}${path}`, buildInit(options));
+  return safeFetch(`${API_BASE}${path}`, buildInit(options));
 }
 
 async function requestJson<T>(

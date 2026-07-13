@@ -1,8 +1,9 @@
-import { cleanup, render, screen } from "@testing-library/react";
+import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MapCanvas } from "../components/map/MapCanvas";
 import {
+  buildMapStyle,
   buildSelectedFilter,
   buildVisitedFilter,
   LAYER_FILL,
@@ -11,6 +12,7 @@ import {
   LAYER_SELECTED,
   LAYER_VISITED,
 } from "../lib/map/map-style";
+import { useThemeStore } from "../lib/stores/theme-store";
 import { MockMap } from "./mocks/maplibre-gl";
 
 vi.mock("maplibre-gl", () => import("./mocks/maplibre-gl"));
@@ -24,10 +26,12 @@ function lastMap(): MockMap {
 describe("MapCanvas", () => {
   beforeEach(() => {
     MockMap.instances = [];
+    useThemeStore.setState({ theme: "dark" });
   });
 
   afterEach(() => {
     cleanup();
+    useThemeStore.setState({ theme: "dark" });
   });
 
   it("mounts a single map on its container and removes it on unmount", () => {
@@ -90,6 +94,24 @@ describe("MapCanvas", () => {
     );
     expect(map.filters.get(LAYER_FRIEND)).toEqual(buildVisitedFilter([]));
     expect(map.filters.get(LAYER_OVERLAP)).toEqual(buildVisitedFilter([]));
+  });
+
+  it("swaps the style palette when the theme changes, keeping filters", () => {
+    render(<MapCanvas visited={["FR"]} selected="FR" />);
+    const map = lastMap();
+    expect(map.options.style).toEqual(buildMapStyle("dark"));
+    expect(map.setStyleCalls).toEqual([]);
+
+    act(() => useThemeStore.getState().setTheme("light"));
+    expect(map.setStyleCalls).toEqual([buildMapStyle("light")]);
+    expect(map.filters.get(LAYER_VISITED)).toEqual(buildVisitedFilter(["FR"]));
+    expect(map.filters.get(LAYER_SELECTED)).toEqual(buildSelectedFilter("FR"));
+
+    act(() => useThemeStore.getState().setTheme("dark"));
+    expect(map.setStyleCalls).toEqual([
+      buildMapStyle("light"),
+      buildMapStyle("dark"),
+    ]);
   });
 
   it("reports clicks on countries", () => {

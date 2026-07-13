@@ -1,14 +1,87 @@
 @import "tailwindcss";
 
-@theme {
-  --color-background: #0b0e14;
-  --color-foreground: #e6e9ef;
-  --color-muted: #8b93a7;
+/*
+ * Theme tokens. Dark is the default; the light palette activates via
+ * `data-theme="light"` on <html>, set before paint by the inline script
+ * in layout.tsx (localStorage, falling back to prefers-color-scheme).
+ */
+:root {
+  --theme-background: #0b0e14;
+  --theme-foreground: #e6e9ef;
+  --theme-muted: #8b93a7;
   /* Matches the visited-country fill on the map. */
-  --color-accent: #0f9d84;
+  --theme-accent: #0f9d84;
+  --theme-accent-strong: #16bda0;
+  /* Ink that stays readable on the accent in both themes. */
+  --theme-on-accent: #04211c;
+  /* Glassmorphism surfaces and hairline borders. */
+  --theme-surface: rgba(255, 255, 255, 0.05);
+  --theme-surface-strong: rgba(255, 255, 255, 0.12);
+  --theme-edge: rgba(255, 255, 255, 0.1);
+  --theme-edge-strong: rgba(255, 255, 255, 0.3);
+  --theme-danger: #f87171;
 }
+
+:root[data-theme="light"] {
+  --theme-background: #eef2f7;
+  --theme-foreground: #171c26;
+  --theme-muted: #57617a;
+  --theme-accent: #0f9d84;
+  --theme-accent-strong: #0b8571;
+  --theme-on-accent: #04211c;
+  --theme-surface: rgba(255, 255, 255, 0.72);
+  --theme-surface-strong: rgba(15, 23, 42, 0.08);
+  --theme-edge: rgba(15, 23, 42, 0.12);
+  --theme-edge-strong: rgba(15, 23, 42, 0.35);
+  --theme-danger: #b91c1c;
+}
+
+@theme inline {
+  --color-background: var(--theme-background);
+  --color-foreground: var(--theme-foreground);
+  --color-muted: var(--theme-muted);
+  --color-accent: var(--theme-accent);
+  --color-accent-strong: var(--theme-accent-strong);
+  --color-on-accent: var(--theme-on-accent);
+  --color-surface: var(--theme-surface);
+  --color-surface-strong: var(--theme-surface-strong);
+  --color-edge: var(--theme-edge);
+  --color-edge-strong: var(--theme-edge-strong);
+  --color-danger: var(--theme-danger);
+}
+
+/* `light:` variant — e.g. `hidden light:block` for the theme-toggle icons. */
+@custom-variant light (&:where([data-theme="light"], [data-theme="light"] *));
 
 body {
   background-color: var(--color-background);
   color: var(--color-foreground);
+}
+
+/* A11y: one consistent, visible focus ring everywhere. */
+:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+
+/* Micro-motion: floating cards rise in over 200ms (ease-out). */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-rise {
+  animation: rise-in 200ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-rise {
+    animation: none;
+  }
 }

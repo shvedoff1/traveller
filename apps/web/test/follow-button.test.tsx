@@ -6,7 +6,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FollowButton } from "../components/social/FollowButton";
 import { api } from "../lib/api-client";
 
-vi.mock("../lib/api-client", () => ({
+vi.mock("../lib/api-client", async (importOriginal) => ({
+  // Keep ApiError & co for modules (lib/errors) that import them.
+  ...(await importOriginal<Record<string, unknown>>()),
   api: {
     getMe: vi.fn(),
     getProfile: vi.fn(),

@@ -32,7 +32,7 @@ export const CountryRow = memo(function CountryRow({
       onMouseLeave={() => onHoverChange(null)}
       onFocus={() => onHoverChange(country.code)}
       onBlur={() => onHoverChange(null)}
-      className="group flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left text-sm hover:bg-white/10"
+      className="group flex w-full items-center gap-3 rounded-lg px-2 py-1.5 text-left text-sm transition-colors duration-200 ease-out hover:bg-surface-strong max-md:min-h-11"
     >
       <span aria-hidden className="text-base leading-none">
         {country.emoji}
@@ -42,8 +42,8 @@ export const CountryRow = memo(function CountryRow({
         aria-hidden
         className={
           visited
-            ? "flex size-4 items-center justify-center rounded-full bg-[#0f9d84] text-[10px] font-bold text-white"
-            : "size-4 rounded-full border border-white/20 group-hover:border-white/40"
+            ? "flex size-4 items-center justify-center rounded-full bg-accent text-[10px] font-bold text-white"
+            : "size-4 rounded-full border border-edge-strong transition-colors duration-200 ease-out group-hover:border-muted"
         }
       >
         {visited ? "✓" : null}

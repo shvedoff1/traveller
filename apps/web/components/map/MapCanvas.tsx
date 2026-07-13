@@ -18,6 +18,7 @@ import {
   LAYER_VISITED,
   shouldIdleRotate,
 } from "../../lib/map/map-style";
+import { useThemeStore } from "../../lib/stores/theme-store";
 
 export interface FlyToRequest {
   center: [lng: number, lat: number];
@@ -68,8 +69,11 @@ export function MapCanvas({
 }: MapCanvasProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
+  const theme = useThemeStore((state) => state.theme);
 
   // Latest props, readable from map event handlers without re-initialising.
+  const themeRef = useRef(theme);
+  themeRef.current = theme;
   const visitedRef = useRef(visited);
   visitedRef.current = visited;
   const friendVisitedRef = useRef(friendVisited);
@@ -89,7 +93,7 @@ export function MapCanvas({
 
     const map = new maplibregl.Map({
       container,
-      style: buildMapStyle(),
+      style: buildMapStyle(themeRef.current),
       center: [12, 25],
       zoom: 1.4,
       minZoom: 0.8,
@@ -181,6 +185,23 @@ export function MapCanvas({
       map.remove();
     };
   }, []);
+
+  // Swap palettes when the theme changes. The two styles share the same
+  // source/layer structure, so MapLibre's setStyle diff only touches paint
+  // properties — filters and hover feature-state survive the swap. Skip the
+  // initial run (the map was created with the current theme already).
+  const appliedThemeRef = useRef(theme);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || appliedThemeRef.current === theme) return;
+    appliedThemeRef.current = theme;
+    map.setStyle(buildMapStyle(theme));
+    // Belt and braces: re-assert the data-driven filters after the swap.
+    if (map.getLayer(LAYER_VISITED)) {
+      applyCompareFilters(map, visitedRef.current, friendVisitedRef.current);
+      map.setFilter(LAYER_SELECTED, buildSelectedFilter(selectedRef.current));
+    }
+  }, [theme]);
 
   // Keep layer filters in sync with props once the style is available.
   useEffect(() => {

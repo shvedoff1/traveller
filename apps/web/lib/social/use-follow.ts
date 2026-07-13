@@ -8,6 +8,8 @@ import {
 } from "@traveller/shared";
 
 import { api } from "../api-client";
+import { describeMutationError } from "../errors";
+import { pushErrorToast } from "../stores/toast-store";
 import {
   applyFollowToFollowingList,
   applyFollowToProfile,
@@ -121,7 +123,15 @@ export function useFollowMutation() {
       return snapshot;
     },
 
-    onError: (_error, { user }, context) => {
+    onError: (error, { user, follow }, context) => {
+      pushErrorToast(
+        describeMutationError(
+          error,
+          follow
+            ? `Couldn’t follow @${user.username} — undone.`
+            : `Couldn’t unfollow @${user.username} — undone.`,
+        ),
+      );
       if (!context) return;
       queryClient.setQueryData(profileQueryKey(user.username), context.profile);
       queryClient.setQueryData(FOLLOWING_QUERY_KEY, context.following);

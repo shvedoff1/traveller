@@ -8,6 +8,8 @@ import type {
   StyleSpecification,
 } from "maplibre-gl";
 
+import { type Theme } from "../theme";
+
 export const COUNTRIES_SOURCE = "countries";
 export const COUNTRIES_DATA_URL = "/geo/countries.geojson";
 
@@ -18,26 +20,65 @@ export const LAYER_OVERLAP = "countries-overlap";
 export const LAYER_BORDER = "countries-border";
 export const LAYER_SELECTED = "countries-selected";
 
-export const MAP_COLORS = {
+export interface MapPalette {
   /** Space around the globe. */
-  space: "#05070d",
+  space: string;
+  horizon: string;
+  fog: string;
   /** Globe surface / oceans. */
-  ocean: "#101624",
-  /** Unvisited country fill — desaturated dark gray. */
-  country: "#242b3a",
-  countryHover: "#3a4459",
-  /** Accent for visited countries. */
-  visited: "#0f9d84",
-  visitedHover: "#16bda0",
+  ocean: string;
+  /** Unvisited country fill. */
+  country: string;
+  countryHover: string;
+  /** Accent for visited countries (shared across themes). */
+  visited: string;
+  visitedHover: string;
   /** Compare mode: countries only the friend has visited. */
-  friend: "#8b5cf6",
-  friendHover: "#a78bfa",
+  friend: string;
+  friendHover: string;
   /** Compare mode: countries you both visited. */
-  overlap: "#d97706",
-  overlapHover: "#f59e0b",
-  border: "#0b0e14",
-  selectedOutline: "#5eead4",
-} as const;
+  overlap: string;
+  overlapHover: string;
+  border: string;
+  selectedOutline: string;
+}
+
+/** Per-theme map palettes; the visited accent is the same in both. */
+export const MAP_PALETTES: Record<Theme, MapPalette> = {
+  dark: {
+    space: "#05070d",
+    horizon: "#1b2436",
+    fog: "#0d1320",
+    ocean: "#101624",
+    country: "#242b3a",
+    countryHover: "#3a4459",
+    visited: "#0f9d84",
+    visitedHover: "#16bda0",
+    friend: "#8b5cf6",
+    friendHover: "#a78bfa",
+    overlap: "#d97706",
+    overlapHover: "#f59e0b",
+    border: "#0b0e14",
+    selectedOutline: "#5eead4",
+  },
+  light: {
+    space: "#dee5ee",
+    horizon: "#c3d2e2",
+    fog: "#d3deea",
+    ocean: "#c9d9e8",
+    country: "#f2f4f7",
+    countryHover: "#dfe4ec",
+    visited: "#0f9d84",
+    visitedHover: "#0b8571",
+    friend: "#7c3aed",
+    friendHover: "#6d28d9",
+    overlap: "#d97706",
+    overlapHover: "#b45309",
+    border: "#ffffff",
+    selectedOutline: "#0f766e",
+  },
+};
+
 
 /** Filter matching the given visited ISO codes (empty list matches nothing). */
 export function buildVisitedFilter(
@@ -68,17 +109,20 @@ function hoverableFill(base: string, hover: string) {
 }
 
 /**
- * Minimal self-contained dark style: no external tiles, a single GeoJSON
- * source, globe projection that flattens as you zoom in.
+ * Minimal self-contained style: no external tiles, a single GeoJSON
+ * source, globe projection that flattens as you zoom in. The palette is
+ * theme-dependent; layer/source structure is identical in both themes so
+ * `map.setStyle` can diff-swap without losing filters or feature-state.
  */
-export function buildMapStyle(): StyleSpecification {
+export function buildMapStyle(theme: Theme = "dark"): StyleSpecification {
+  const MAP_COLORS = MAP_PALETTES[theme];
   return {
     version: 8,
     projection: { type: "globe" },
     sky: {
       "sky-color": MAP_COLORS.space,
-      "horizon-color": "#1b2436",
-      "fog-color": "#0d1320",
+      "horizon-color": MAP_COLORS.horizon,
+      "fog-color": MAP_COLORS.fog,
       "sky-horizon-blend": 0.6,
       "horizon-fog-blend": 0.7,
       "fog-ground-blend": 0.85,

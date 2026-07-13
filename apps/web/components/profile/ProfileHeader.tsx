@@ -49,7 +49,7 @@ export function ProfileHeader({
     <section
       aria-label="Profile"
       data-testid="profile-header"
-      className="absolute left-4 top-16 z-20 w-72 rounded-2xl border border-white/10 bg-white/5 p-4 shadow-2xl backdrop-blur-xl"
+      className="animate-rise absolute left-4 top-16 z-20 w-[min(18rem,calc(100vw-2rem))] rounded-2xl border border-edge bg-surface p-4 shadow-2xl backdrop-blur-xl"
     >
       <div className="flex items-center gap-3">
         {avatarUrl ? (
@@ -62,7 +62,7 @@ export function ProfileHeader({
         ) : (
           <span
             aria-hidden
-            className="flex size-12 items-center justify-center rounded-full bg-white/15 text-lg font-semibold uppercase"
+            className="flex size-12 items-center justify-center rounded-full bg-surface-strong text-lg font-semibold uppercase"
           >
             {displayName.slice(0, 1)}
           </span>
@@ -85,7 +85,7 @@ export function ProfileHeader({
           type="button"
           onClick={share}
           data-testid="share-button"
-          className="rounded-full bg-white/10 px-3 py-1.5 text-sm font-medium hover:bg-white/20"
+          className="rounded-full bg-surface-strong px-3 py-1.5 text-sm font-medium transition-colors duration-200 ease-out hover:bg-edge-strong max-md:min-h-11"
         >
           Share
         </button>
@@ -93,7 +93,7 @@ export function ProfileHeader({
           <Link
             href="/"
             data-testid="edit-map-link"
-            className="rounded-full px-3 py-1.5 text-sm text-muted underline-offset-4 hover:underline"
+            className="rounded-full px-3 py-1.5 text-sm text-muted underline-offset-4 transition-colors duration-200 ease-out hover:text-foreground hover:underline max-md:min-h-11 max-md:content-center"
           >
             Edit your map →
           </Link>

@@ -78,7 +78,7 @@ function SheetContent({
   return (
     <aside
       data-testid="country-detail-sheet"
-      className="absolute bottom-4 left-1/2 z-30 w-[min(21rem,calc(100vw-2rem))] -translate-x-1/2 rounded-2xl border border-white/10 bg-white/5 p-4 shadow-2xl backdrop-blur-xl"
+      className="animate-rise absolute bottom-4 left-1/2 z-30 w-[min(21rem,calc(100vw-2rem))] -translate-x-1/2 rounded-2xl border border-edge bg-surface p-4 shadow-2xl backdrop-blur-xl"
     >
       <div className="flex items-start justify-between gap-3">
         <div>
@@ -97,7 +97,7 @@ function SheetContent({
           type="button"
           aria-label="Close"
           onClick={onClose}
-          className="rounded-lg px-2 py-1 text-muted hover:bg-white/10 hover:text-foreground"
+          className="rounded-lg px-2 py-1 text-muted transition-colors duration-200 ease-out hover:bg-surface-strong hover:text-foreground max-md:min-h-11 max-md:min-w-11"
         >
           ×
         </button>
@@ -118,7 +118,7 @@ function SheetContent({
               onChange={(event) => setYear(event.target.value)}
               aria-label="Year visited"
               data-testid="visit-year"
-              className="rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-sm outline-none [&>option]:bg-background"
+              className="rounded-lg border border-edge bg-surface px-2 py-1.5 text-sm transition-colors duration-200 ease-out focus:border-edge-strong focus:outline-none max-md:min-h-11 [&>option]:bg-background [&>option]:text-foreground"
             >
               <option value="">Year</option>
               {years.map((candidate) => (
@@ -135,14 +135,14 @@ function SheetContent({
               placeholder="Add a note…"
               aria-label="Note"
               data-testid="visit-note"
-              className="min-w-0 flex-1 rounded-lg border border-white/10 bg-white/5 px-2 py-1.5 text-sm outline-none placeholder:text-muted"
+              className="min-w-0 flex-1 rounded-lg border border-edge bg-surface px-2 py-1.5 text-sm transition-colors duration-200 ease-out placeholder:text-muted focus:border-edge-strong focus:outline-none max-md:min-h-11"
             />
           </div>
           <div className="flex items-center justify-between gap-2">
             <button
               type="submit"
               data-testid="visit-save"
-              className="rounded-lg bg-[#0f9d84] px-3 py-1.5 text-sm font-medium text-white hover:bg-[#16bda0]"
+              className="rounded-lg bg-accent px-3 py-1.5 text-sm font-medium text-on-accent transition-colors duration-200 ease-out hover:bg-accent-strong max-md:min-h-11"
             >
               {visit ? "Save" : "Mark as visited"}
             </button>
@@ -151,7 +151,7 @@ function SheetContent({
                 type="button"
                 data-testid="visit-unmark"
                 onClick={() => onUnmark(country.code)}
-                className="text-sm text-muted underline-offset-4 hover:underline"
+                className="text-sm text-muted underline-offset-4 transition-colors duration-200 ease-out hover:text-foreground hover:underline max-md:min-h-11"
               >
                 Remove from visited
               </button>

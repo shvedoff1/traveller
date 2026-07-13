@@ -53,6 +53,13 @@ export class MockMap {
     this.removed = true;
   }
 
+  readonly setStyleCalls: unknown[] = [];
+
+  setStyle(style: unknown) {
+    this.setStyleCalls.push(style);
+    return this;
+  }
+
   getCanvas() {
     return this.canvas;
   }

@@ -16,7 +16,7 @@ export function CountrySearch({
       placeholder="Search countries…"
       aria-label="Search countries"
       data-testid="country-search"
-      className="w-full rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm outline-none placeholder:text-muted focus:border-white/25"
+      className="w-full rounded-xl border border-edge bg-surface px-3 py-2 text-sm transition-colors duration-200 ease-out placeholder:text-muted focus:border-edge-strong focus:outline-none max-md:min-h-11"
     />
   );
 }

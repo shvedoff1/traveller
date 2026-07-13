@@ -31,7 +31,7 @@ export default function LoginPage() {
 
   return (
     <main className="flex min-h-[70dvh] items-center justify-center px-6">
-      <div className="w-full max-w-sm rounded-2xl border border-white/10 p-8">
+      <div className="w-full max-w-sm rounded-2xl border border-edge bg-surface p-8">
         <h1 className="text-2xl font-semibold tracking-tight">Log in</h1>
 
         {sentTo ? (
@@ -56,7 +56,7 @@ export default function LoginPage() {
             {providers?.google ? (
               <a
                 href={`${API_BASE}/auth/google`}
-                className="mt-6 flex w-full items-center justify-center rounded-lg border border-white/20 px-4 py-2 text-sm font-medium hover:bg-white/10"
+                className="mt-6 flex w-full items-center justify-center rounded-lg border border-edge-strong px-4 py-2 text-sm font-medium transition-colors duration-200 ease-out hover:bg-surface-strong"
               >
                 Continue with Google
               </a>
@@ -74,7 +74,7 @@ export default function LoginPage() {
                 value={email}
                 onChange={(event) => setEmail(event.target.value)}
                 placeholder="you@example.com"
-                className="w-full rounded-lg border border-white/20 bg-transparent px-3 py-2 text-sm outline-none focus:border-white/50"
+                className="w-full rounded-lg border border-edge-strong bg-transparent px-3 py-2 text-sm transition-colors duration-200 ease-out focus:border-muted focus:outline-none"
               />
               <button
                 type="submit"
@@ -84,7 +84,7 @@ export default function LoginPage() {
                 {sendLink.isPending ? "Sending…" : "Email me a magic link"}
               </button>
               {sendLink.isError ? (
-                <p role="alert" className="text-sm text-red-400">
+                <p role="alert" className="text-sm text-danger">
                   Couldn&apos;t send the link — try again in a few minutes.
                 </p>
               ) : null}

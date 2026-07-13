@@ -9,6 +9,7 @@ import {
   useFollowMutation,
   useProfileQuery,
 } from "../../lib/social/use-follow";
+import { Skeleton } from "../ui/Skeleton";
 
 /**
  * Follow/unfollow toggle used on public profiles, search results and
@@ -38,14 +39,16 @@ export function FollowButton({
   );
   const followMutation = useFollowMutation();
 
-  if (meLoading || isSelf) return null;
+  // Loading skeleton keeps the action row from popping in.
+  if (meLoading) return <Skeleton className="h-8 w-20 rounded-full" />;
+  if (isSelf) return null;
 
   if (!me) {
     return (
       <Link
         href="/login"
         data-testid="follow-button"
-        className="rounded-full bg-white/10 px-3 py-1.5 text-sm font-medium hover:bg-white/20"
+        className="rounded-full bg-surface-strong px-3 py-1.5 text-sm font-medium transition-colors duration-200 ease-out hover:bg-edge-strong max-md:min-h-11 max-md:content-center"
       >
         Follow
       </Link>
@@ -62,8 +65,8 @@ export function FollowButton({
       onClick={() => followMutation.mutate({ user, follow: !following })}
       className={
         following
-          ? "rounded-full border border-white/15 px-3 py-1.5 text-sm font-medium text-muted hover:border-white/30 hover:text-foreground"
-          : "rounded-full bg-accent px-3 py-1.5 text-sm font-medium text-background hover:opacity-90"
+          ? "rounded-full border border-edge px-3 py-1.5 text-sm font-medium text-muted transition-colors duration-200 ease-out hover:border-edge-strong hover:text-foreground max-md:min-h-11"
+          : "rounded-full bg-accent px-3 py-1.5 text-sm font-medium text-on-accent transition-colors duration-200 ease-out hover:bg-accent-strong max-md:min-h-11"
       }
     >
       {following ? "Following" : "Follow"}

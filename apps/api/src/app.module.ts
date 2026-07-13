@@ -5,6 +5,8 @@ import { JwtModule } from "@nestjs/jwt";
 import { CsrfGuard } from "./common/csrf.guard";
 import { loadEnv } from "./config/env";
 import { MailModule } from "./mail/mail.module";
+import { GlobalRateLimitGuard } from "./rate-limit/global-rate-limit.guard";
+import { RateLimitModule } from "./rate-limit/rate-limit.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { FollowsModule } from "./modules/follows/follows.module";
 import { HealthModule } from "./modules/health/health.module";
@@ -25,6 +27,7 @@ import { RedisModule } from "./redis/redis.module";
     }),
     PrismaModule,
     RedisModule,
+    RateLimitModule,
     MailModule,
     HealthModule,
     AuthModule,
@@ -36,7 +39,9 @@ import { RedisModule } from "./redis/redis.module";
     StatsModule,
   ],
   providers: [
-    // Custom-header CSRF check on every state-changing request.
+    // Guards run in registration order: rate-limit first (cheap, applies
+    // to everything), then the custom-header CSRF check on mutations.
+    { provide: APP_GUARD, useClass: GlobalRateLimitGuard },
     { provide: APP_GUARD, useClass: CsrfGuard },
   ],
 })

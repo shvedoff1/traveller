@@ -58,4 +58,17 @@ describe("parseEnv", () => {
     expect(env.GOOGLE_CLIENT_ID).toBeUndefined();
     expect(env.GOOGLE_CLIENT_SECRET).toBeUndefined();
   });
+
+  it("parses TRUST_PROXY as a boolean, defaulting to false", () => {
+    expect(parseEnv(REQUIRED).TRUST_PROXY).toBe(false);
+    expect(parseEnv({ ...REQUIRED, TRUST_PROXY: "true" }).TRUST_PROXY).toBe(
+      true,
+    );
+    expect(parseEnv({ ...REQUIRED, TRUST_PROXY: "false" }).TRUST_PROXY).toBe(
+      false,
+    );
+    expect(() => parseEnv({ ...REQUIRED, TRUST_PROXY: "yes" })).toThrow(
+      /TRUST_PROXY/,
+    );
+  });
 });

@@ -27,12 +27,12 @@ export function LoginPrompt() {
     <div
       role="status"
       data-testid="login-prompt"
-      className="absolute bottom-6 left-1/2 z-30 flex -translate-x-1/2 items-center gap-3 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm shadow-2xl backdrop-blur-xl"
+      className="animate-rise absolute bottom-6 left-1/2 z-30 flex -translate-x-1/2 items-center gap-3 rounded-full border border-edge bg-surface px-4 py-2 text-sm shadow-2xl backdrop-blur-xl max-md:w-[calc(100vw-2rem)] max-md:justify-between"
     >
       <span>Log in to save the countries you’ve visited</span>
       <Link
         href="/login"
-        className="rounded-full bg-white/10 px-3 py-1 font-medium hover:bg-white/20"
+        className="rounded-full bg-surface-strong px-3 py-1 font-medium transition-colors duration-200 ease-out hover:bg-edge-strong max-md:min-h-9 max-md:content-center"
         onClick={hide}
       >
         Log in
@@ -41,7 +41,7 @@ export function LoginPrompt() {
         type="button"
         aria-label="Dismiss"
         onClick={hide}
-        className="text-muted hover:text-foreground"
+        className="rounded-full px-1 text-muted transition-colors duration-200 ease-out hover:text-foreground max-md:min-h-11 max-md:min-w-8"
       >
         ×
       </button>

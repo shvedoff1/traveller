@@ -5,6 +5,9 @@
   "description": "Shared contract: zod schemas, canonical country list",
   "main": "./dist/index.js",
   "types": "./dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

@@ -7,6 +7,11 @@ import { type App } from "supertest/types";
 
 import { MailService } from "../src/mail/mail.service";
 import { PrismaService } from "../src/prisma/prisma.service";
+import {
+  DEFAULT_RATE_LIMITS,
+  RATE_LIMITS,
+  type RateLimits,
+} from "../src/rate-limit/rate-limit.constants";
 import { REDIS_CLIENT } from "../src/redis/redis.module";
 import { AppModule } from "../src/app.module";
 
@@ -28,9 +33,21 @@ export interface TestContext {
  * Boot the full AppModule against the real test Postgres/Redis, with the
  * SMTP mail transport replaced by an in-memory capture (the spec's
  * "intercept mail service" option — CI has no Mailpit).
+ *
+ * The global per-IP limit is raised by default (every suite shares
+ * supertest's 127.0.0.1, which would trip the production 100/min budget);
+ * rate-limit.e2e-spec.ts overrides it back down to test the guard itself.
  */
-export async function createTestContext(): Promise<TestContext> {
+export async function createTestContext(
+  rateLimits: Partial<RateLimits> = {},
+): Promise<TestContext> {
   const mailbox: CapturedMail[] = [];
+
+  const limits: RateLimits = {
+    ...DEFAULT_RATE_LIMITS,
+    global: { ...DEFAULT_RATE_LIMITS.global, max: 10_000 },
+    ...rateLimits,
+  };
 
   const moduleRef = await Test.createTestingModule({ imports: [AppModule] })
     .overrideProvider(MailService)
@@ -39,6 +56,8 @@ export async function createTestContext(): Promise<TestContext> {
         mailbox.push({ to, link });
       },
     })
+    .overrideProvider(RATE_LIMITS)
+    .useValue(limits)
     .compile();
 
   const app = moduleRef.createNestApplication();

@@ -1,7 +1,5 @@
 import {
   BadRequestException,
-  HttpException,
-  HttpStatus,
   Inject,
   Injectable,
   NotFoundException,
@@ -14,22 +12,22 @@ import {
   type UserSearchResult,
   usernameSchema,
 } from "@traveller/shared";
-import type Redis from "ioredis";
 
 import { PrismaService } from "../../prisma/prisma.service";
-import { REDIS_CLIENT } from "../../redis/redis.module";
+import {
+  RATE_LIMITS,
+  type RateLimits,
+} from "../../rate-limit/rate-limit.constants";
+import { RateLimitService } from "../../rate-limit/rate-limit.service";
 import { ProfileCacheService } from "../profile-cache/profile-cache.service";
-
-/** Search throttle: tighter than the rest of the API (per user, Redis). */
-const SEARCH_THROTTLE_WINDOW_SECONDS = 60;
-const SEARCH_THROTTLE_MAX_REQUESTS = 20;
 
 @Injectable()
 export class FollowsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cache: ProfileCacheService,
-    @Inject(REDIS_CLIENT) private readonly redis: Redis,
+    private readonly rateLimit: RateLimitService,
+    @Inject(RATE_LIMITS) private readonly limits: RateLimits,
   ) {}
 
   /**
@@ -134,7 +132,10 @@ export class FollowsService {
    * {@link USER_SEARCH_LIMIT} rows. Throttled to 20/min per user.
    */
   async search(userId: string, query: string): Promise<UserSearchResult[]> {
-    await this.throttleSearch(userId);
+    await this.rateLimit.consume(
+      `throttle:user-search:${userId}`,
+      this.limits.search,
+    );
 
     const q = query.trim();
     if (q.length === 0) return [];
@@ -166,20 +167,6 @@ export class FollowsService {
         isFollowing: followedIds.has(user.id),
       })),
     );
-  }
-
-  private async throttleSearch(userId: string): Promise<void> {
-    const key = `throttle:user-search:${userId}`;
-    const count = await this.redis.incr(key);
-    if (count === 1) {
-      await this.redis.expire(key, SEARCH_THROTTLE_WINDOW_SECONDS);
-    }
-    if (count > SEARCH_THROTTLE_MAX_REQUESTS) {
-      throw new HttpException(
-        "Too many search requests, try again later",
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
   }
 
   /** Resolve a follow target by handle; 404 when unknown or unclaimed. */

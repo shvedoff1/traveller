@@ -1,8 +1,13 @@
-import { Injectable } from "@nestjs/common";
+import { Inject, Injectable } from "@nestjs/common";
 import { type VisitedCountry } from "@prisma/client";
 import { type UpsertVisitInput, type Visit } from "@traveller/shared";
 
 import { PrismaService } from "../../prisma/prisma.service";
+import {
+  RATE_LIMITS,
+  type RateLimits,
+} from "../../rate-limit/rate-limit.constants";
+import { RateLimitService } from "../../rate-limit/rate-limit.service";
 import { ProfileCacheService } from "../profile-cache/profile-cache.service";
 
 function toVisit(row: VisitedCountry): Visit {
@@ -19,7 +24,17 @@ export class VisitsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly cache: ProfileCacheService,
+    private readonly rateLimit: RateLimitService,
+    @Inject(RATE_LIMITS) private readonly limits: RateLimits,
   ) {}
+
+  /** Visit writes (PUT/DELETE) share one 60/min per-user budget. */
+  private async throttleWrite(userId: string): Promise<void> {
+    await this.rateLimit.consume(
+      `throttle:visits-write:${userId}`,
+      this.limits.visitsWrite,
+    );
+  }
 
   /** All visited countries of a user, sorted by country code. */
   async list(userId: string): Promise<Visit[]> {
@@ -39,6 +54,7 @@ export class VisitsService {
     countryCode: string,
     input: UpsertVisitInput,
   ): Promise<Visit> {
+    await this.throttleWrite(userId);
     const data = {
       visitedYear: input.visitedYear ?? null,
       note: input.note ? input.note : null,
@@ -54,6 +70,7 @@ export class VisitsService {
 
   /** Idempotent delete — succeeds whether or not the visit exists. */
   async remove(userId: string, countryCode: string): Promise<void> {
+    await this.throttleWrite(userId);
     await this.prisma.visitedCountry.deleteMany({
       where: { userId, countryCode },
     });

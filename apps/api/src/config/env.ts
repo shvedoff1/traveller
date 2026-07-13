@@ -27,6 +27,11 @@ const envSchema = z.object({
   SMTP_HOST: z.string().default("localhost"),
   SMTP_PORT: z.coerce.number().int().min(1).max(65535).default(1025),
   COOKIE_DOMAIN: z.string().optional(),
+  /** Set to true when the API runs behind a reverse proxy (X-Forwarded-For). */
+  TRUST_PROXY: z
+    .enum(["true", "false"])
+    .default("false")
+    .transform((value) => value === "true"),
 });
 
 export type Env = z.infer<typeof envSchema>;

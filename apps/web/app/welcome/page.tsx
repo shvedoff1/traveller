@@ -39,7 +39,7 @@ export default function WelcomePage() {
 
   return (
     <main className="flex min-h-[70dvh] items-center justify-center px-6">
-      <div className="w-full max-w-sm rounded-2xl border border-white/10 p-8">
+      <div className="w-full max-w-sm rounded-2xl border border-edge bg-surface p-8">
         <h1 className="text-2xl font-semibold tracking-tight">Welcome!</h1>
         <p className="mt-2 text-sm text-muted">
           Claim your username — it becomes your public profile URL.
@@ -49,7 +49,7 @@ export default function WelcomePage() {
           <label className="block text-sm" htmlFor="username">
             Username
           </label>
-          <div className="flex items-center rounded-lg border border-white/20 px-3">
+          <div className="flex items-center rounded-lg border border-edge-strong px-3">
             <span className="text-sm text-muted">
               traveller.app/
             </span>
@@ -68,12 +68,12 @@ export default function WelcomePage() {
             />
           </div>
           {showFormatHint ? (
-            <p className="text-sm text-red-400" role="alert">
+            <p className="text-sm text-danger" role="alert">
               3–30 characters: lowercase letters, digits and underscore.
             </p>
           ) : null}
           {errorMessage ? (
-            <p className="text-sm text-red-400" role="alert">
+            <p className="text-sm text-danger" role="alert">
               {errorMessage}
             </p>
           ) : null}

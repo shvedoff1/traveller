@@ -4,6 +4,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { type UpsertVisitInput, type Visit } from "@traveller/shared";
 
 import { api } from "../api-client";
+import { describeMutationError } from "../errors";
+import { pushErrorToast } from "../stores/toast-store";
 import {
   VISITS_QUERY_KEY,
   applyDelete,
@@ -46,10 +48,13 @@ export function useUpsertVisit() {
       );
       return { previous };
     },
-    onError: (_error, _variables, context) => {
+    onError: (error, _variables, context) => {
       if (context) {
         queryClient.setQueryData(VISITS_QUERY_KEY, context.previous);
       }
+      pushErrorToast(
+        describeMutationError(error, "Couldn’t save that country — undone."),
+      );
     },
     onSettled: () =>
       queryClient.invalidateQueries({ queryKey: VISITS_QUERY_KEY }),
@@ -69,10 +74,13 @@ export function useDeleteVisit() {
       );
       return { previous };
     },
-    onError: (_error, _variables, context) => {
+    onError: (error, _variables, context) => {
       if (context) {
         queryClient.setQueryData(VISITS_QUERY_KEY, context.previous);
       }
+      pushErrorToast(
+        describeMutationError(error, "Couldn’t remove that country — undone."),
+      );
     },
     onSettled: () =>
       queryClient.invalidateQueries({ queryKey: VISITS_QUERY_KEY }),

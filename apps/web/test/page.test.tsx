@@ -22,7 +22,9 @@ import { api } from "../lib/api-client";
 import { MockMap } from "./mocks/maplibre-gl";
 
 vi.mock("maplibre-gl", () => import("./mocks/maplibre-gl"));
-vi.mock("../lib/api-client", () => ({
+vi.mock("../lib/api-client", async (importOriginal) => ({
+  // Keep ApiError & co for modules (lib/errors) that import them.
+  ...(await importOriginal<Record<string, unknown>>()),
   api: {
     getMe: vi.fn(),
     getMyVisits: vi.fn(),

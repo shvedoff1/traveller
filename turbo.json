@@ -14,6 +14,7 @@
     "SMTP_HOST",
     "SMTP_PORT",
     "COOKIE_DOMAIN",
+    "TRUST_PROXY",
     "NEXT_PUBLIC_API_URL",
     "CI"
   ],

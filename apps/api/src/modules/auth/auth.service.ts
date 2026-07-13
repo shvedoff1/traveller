@@ -2,32 +2,32 @@ import { randomBytes } from "node:crypto";
 
 import {
   GoneException,
-  HttpException,
-  HttpStatus,
   Inject,
   Injectable,
   UnauthorizedException,
 } from "@nestjs/common";
 import { type User } from "@prisma/client";
 import { type MeResponse } from "@traveller/shared";
-import type Redis from "ioredis";
 
 import { loadEnv } from "../../config/env";
 import { MailService } from "../../mail/mail.service";
 import { PrismaService } from "../../prisma/prisma.service";
-import { REDIS_CLIENT } from "../../redis/redis.module";
+import {
+  RATE_LIMITS,
+  type RateLimits,
+} from "../../rate-limit/rate-limit.constants";
+import { RateLimitService } from "../../rate-limit/rate-limit.service";
 import { hashToken } from "./refresh-token.logic";
 
 const MAGIC_LINK_TTL_MS = 15 * 60 * 1000; // 15 min
-const THROTTLE_WINDOW_SECONDS = 15 * 60;
-const THROTTLE_MAX_REQUESTS = 3;
 
 @Injectable()
 export class AuthService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly mail: MailService,
-    @Inject(REDIS_CLIENT) private readonly redis: Redis,
+    private readonly rateLimit: RateLimitService,
+    @Inject(RATE_LIMITS) private readonly limits: RateLimits,
   ) {}
 
   /**
@@ -36,17 +36,10 @@ export class AuthService {
    * the address has an account.
    */
   async requestMagicLink(email: string): Promise<void> {
-    const throttleKey = `throttle:magic-link:${email}`;
-    const count = await this.redis.incr(throttleKey);
-    if (count === 1) {
-      await this.redis.expire(throttleKey, THROTTLE_WINDOW_SECONDS);
-    }
-    if (count > THROTTLE_MAX_REQUESTS) {
-      throw new HttpException(
-        "Too many magic-link requests, try again later",
-        HttpStatus.TOO_MANY_REQUESTS,
-      );
-    }
+    await this.rateLimit.consume(
+      `throttle:magic-link:${email}`,
+      this.limits.magicLink,
+    );
 
     const raw = randomBytes(32).toString("base64url");
     await this.prisma.loginToken.create({

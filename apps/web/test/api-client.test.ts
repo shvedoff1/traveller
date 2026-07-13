@@ -1,6 +1,11 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-import { ApiError, api, apiFetch } from "../lib/api-client";
+import {
+  ApiError,
+  NETWORK_ERROR_MESSAGE,
+  api,
+  apiFetch,
+} from "../lib/api-client";
 
 const ME = {
   id: "5f0b6f6a-9b1a-4e2a-8c8d-2f6a1b3c4d5e",
@@ -158,5 +163,24 @@ describe("api helpers", () => {
 
     fetchMock.mockResolvedValueOnce(jsonResponse({}, 500));
     await expect(api.logout()).rejects.toBeInstanceOf(ApiError);
+  });
+});
+
+describe("network failures", () => {
+  it("surfaces transport errors as ApiError(0), not a bare TypeError", async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+
+    const error = await apiFetch("/auth/me").catch((e) => e);
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).status).toBe(0);
+    expect((error as ApiError).isNetworkError).toBe(true);
+    expect((error as ApiError).message).toBe(NETWORK_ERROR_MESSAGE);
+  });
+
+  it("propagates network errors through the typed api helpers", async () => {
+    fetchMock.mockRejectedValueOnce(new TypeError("Failed to fetch"));
+    const error = await api.getMe().catch((e) => e);
+    expect(error).toBeInstanceOf(ApiError);
+    expect((error as ApiError).isNetworkError).toBe(true);
   });
 });

@@ -11,9 +11,10 @@
     "test": "sh ./scripts/run-tests.sh",
     "db:generate": "prisma generate"
   },
-  "prisma": {
-    "seed": "tsx prisma/seed.ts"
-  },
+  "files": [
+    "dist",
+    "prisma"
+  ],
   "dependencies": {
     "@nestjs/common": "^11.1.28",
     "@nestjs/core": "^11.1.28",
@@ -28,6 +29,7 @@
     "nodemailer": "^7.0.12",
     "passport": "^0.7.0",
     "passport-google-oauth20": "^2.0.0",
+    "prisma": "^6.19.1",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.2",
     "zod": "^3.25.76"
@@ -37,7 +39,6 @@
     "@nestjs/testing": "^11.1.28",
     "@types/nodemailer": "^7.0.4",
     "@types/passport-google-oauth20": "^2.0.16",
-    "prisma": "^6.19.1",
     "tsx": "^4.20.6",
     "@traveller/eslint-config": "workspace:*",
     "@traveller/tsconfig": "workspace:*",

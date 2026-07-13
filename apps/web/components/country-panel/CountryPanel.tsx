@@ -62,24 +62,32 @@ export function CountryPanel() {
 
   const panelClass =
     open === null ? "hidden md:flex" : open ? "flex" : "hidden";
-  const pillClass = open === null ? "md:hidden" : open ? "hidden" : "";
+  const pillClass = open === null ? "flex md:hidden" : open ? "hidden" : "flex";
 
   return (
     <>
+      {/* Collapsed state: a floating search pill. On mobile it sits above
+          the bottom edge and expands into the bottom sheet below. */}
       <button
         type="button"
         data-testid="country-panel-pill"
+        aria-expanded={open === true}
         onClick={() => setOpen(true)}
-        className={`${pillClass} absolute right-4 top-16 z-20 items-center gap-2 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-sm shadow-2xl backdrop-blur-xl hover:bg-white/10`}
+        className={`${pillClass} absolute z-20 min-h-11 items-center gap-2 rounded-full border border-edge bg-surface px-5 text-sm shadow-2xl backdrop-blur-xl transition-colors duration-200 ease-out hover:bg-surface-strong max-md:bottom-4 max-md:right-4 md:right-4 md:top-16`}
       >
         <span aria-hidden>🔍</span> Countries
       </button>
 
+      {/* Open state: side panel on md+, bottom sheet on mobile. */}
       <section
         aria-label="Countries"
         data-testid="country-panel"
-        className={`${panelClass} absolute bottom-4 right-4 top-16 z-20 w-[min(20rem,calc(100vw-2rem))] flex-col gap-3 rounded-2xl border border-white/10 bg-white/5 p-3 shadow-2xl backdrop-blur-xl`}
+        className={`${panelClass} animate-rise absolute z-20 flex-col gap-3 border border-edge bg-surface p-3 shadow-2xl backdrop-blur-xl max-md:inset-x-0 max-md:bottom-0 max-md:h-[62dvh] max-md:rounded-t-2xl max-md:border-x-0 max-md:border-b-0 md:bottom-4 md:right-4 md:top-16 md:w-[min(20rem,calc(100vw-2rem))] md:rounded-2xl`}
       >
+        <span
+          aria-hidden
+          className="mx-auto -mb-1 h-1 w-10 shrink-0 rounded-full bg-edge-strong md:hidden"
+        />
         <div className="flex items-center gap-2">
           <CountrySearch value={query} onChange={setQuery} />
           <button
@@ -87,7 +95,7 @@ export function CountryPanel() {
             aria-label="Collapse panel"
             data-testid="country-panel-collapse"
             onClick={() => setOpen(false)}
-            className="rounded-lg px-2 py-1.5 text-muted hover:bg-white/10 hover:text-foreground"
+            className="rounded-lg px-2 py-1.5 text-muted transition-colors duration-200 ease-out hover:bg-surface-strong hover:text-foreground max-md:min-h-11 max-md:min-w-11"
           >
             ×
           </button>
@@ -104,7 +112,7 @@ export function CountryPanel() {
             {visitedCountries.length === 0 ? (
               <p className="px-2 py-1 text-sm text-muted">
                 {visited.length === 0
-                  ? "Nothing yet — click a country to mark it."
+                  ? "Nothing yet — tap a country to begin."
                   : "No visited countries match."}
               </p>
             ) : (

@@ -33,7 +33,7 @@ export function FriendCard({
   return (
     <li
       data-testid={`friend-card-${user.username}`}
-      className="flex items-center gap-3 rounded-2xl border border-white/10 bg-white/5 p-3"
+      className="flex items-center gap-3 rounded-2xl border border-edge bg-surface p-3"
     >
       {user.avatarUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
@@ -45,7 +45,7 @@ export function FriendCard({
       ) : (
         <span
           aria-hidden
-          className="flex size-10 shrink-0 items-center justify-center rounded-full bg-white/15 text-sm font-semibold uppercase"
+          className="flex size-10 shrink-0 items-center justify-center rounded-full bg-surface-strong text-sm font-semibold uppercase"
         >
           {user.displayName.slice(0, 1)}
         </span>
@@ -65,7 +65,7 @@ export function FriendCard({
           type="button"
           data-testid={`view-on-map-${user.username}`}
           onClick={viewOnMap}
-          className="rounded-full border border-white/15 px-3 py-1.5 text-sm text-muted hover:border-white/30 hover:text-foreground"
+          className="rounded-full border border-edge px-3 py-1.5 text-sm text-muted transition-colors duration-200 ease-out hover:border-edge-strong hover:text-foreground max-md:min-h-11"
         >
           View on map
         </button>

@@ -1,7 +1,8 @@
 "use client";
 
-import { MAP_COLORS } from "../../lib/map/map-style";
+import { MAP_PALETTES } from "../../lib/map/map-style";
 import { useMapStore } from "../../lib/stores/map-store";
+import { useThemeStore } from "../../lib/stores/theme-store";
 
 /**
  * Bottom-right legend chip shown while comparing maps with a friend:
@@ -10,27 +11,29 @@ import { useMapStore } from "../../lib/stores/map-store";
 export function CompareLegend({ myName }: { myName: string }) {
   const compareWith = useMapStore((state) => state.compareWith);
   const stopCompare = useMapStore((state) => state.stopCompare);
+  const theme = useThemeStore((state) => state.theme);
 
   if (!compareWith) return null;
 
+  const palette = MAP_PALETTES[theme];
   return (
     <div
       data-testid="compare-legend"
-      className="absolute bottom-4 right-4 z-30 flex items-center gap-4 rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs shadow-2xl backdrop-blur-xl"
+      className="animate-rise absolute bottom-4 right-4 z-30 flex items-center gap-4 rounded-full border border-edge bg-surface px-4 py-2 text-xs shadow-2xl backdrop-blur-xl"
     >
-      <LegendSwatch color={MAP_COLORS.visited} label={myName} />
+      <LegendSwatch color={palette.visited} label={myName} />
       <LegendSwatch
-        color={MAP_COLORS.friend}
+        color={palette.friend}
         label={compareWith.displayName}
         testId="compare-friend-name"
       />
-      <LegendSwatch color={MAP_COLORS.overlap} label="Both" />
+      <LegendSwatch color={palette.overlap} label="Both" />
       <button
         type="button"
         aria-label="Exit compare mode"
         data-testid="compare-exit"
         onClick={stopCompare}
-        className="text-muted hover:text-foreground"
+        className="rounded-full px-1 text-muted transition-colors duration-200 ease-out hover:text-foreground max-md:min-h-11 max-md:min-w-8"
       >
         ×
       </button>

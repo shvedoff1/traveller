@@ -14,5 +14,12 @@ export function StatsBar() {
   const { visited } = useMapVisits();
   const stats = useMemo(() => computeStats(visited), [visited]);
 
-  return <StatsPanel stats={stats} className="absolute bottom-4 left-4 z-20" />;
+  // Mobile: top-left under the header (the bottom edge belongs to the
+  // search pill / bottom sheet); desktop: bottom-left.
+  return (
+    <StatsPanel
+      stats={stats}
+      className="absolute left-4 z-20 max-md:top-16 md:bottom-4"
+    />
+  );
 }

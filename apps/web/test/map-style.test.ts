@@ -14,6 +14,7 @@ import {
   LAYER_OVERLAP,
   LAYER_SELECTED,
   LAYER_VISITED,
+  MAP_PALETTES,
   shouldIdleRotate,
 } from "../lib/map/map-style";
 
@@ -95,6 +96,35 @@ describe("buildMapStyle", () => {
     expect(Object.keys(style.sources)).toEqual([COUNTRIES_SOURCE]);
     expect(style.glyphs).toBeUndefined();
     expect(style.sprite).toBeUndefined();
+  });
+
+  it("defaults to the dark palette", () => {
+    expect(buildMapStyle()).toEqual(buildMapStyle("dark"));
+  });
+});
+
+describe("theme palettes", () => {
+  const dark = buildMapStyle("dark");
+  const light = buildMapStyle("light");
+
+  it("keeps the visited accent identical across themes", () => {
+    expect(MAP_PALETTES.light.visited).toBe(MAP_PALETTES.dark.visited);
+  });
+
+  it("both themes share the exact layer/source structure (diffable swap)", () => {
+    expect(light.layers.map((layer) => layer.id)).toEqual(
+      dark.layers.map((layer) => layer.id),
+    );
+    expect(light.sources).toEqual(dark.sources);
+    expect(light.projection).toEqual(dark.projection);
+  });
+
+  it("the light style actually uses the light palette", () => {
+    const background = light.layers.find((layer) => layer.id === "background");
+    expect(background).toMatchObject({
+      paint: { "background-color": MAP_PALETTES.light.ocean },
+    });
+    expect(MAP_PALETTES.light.ocean).not.toBe(MAP_PALETTES.dark.ocean);
   });
 });
 
