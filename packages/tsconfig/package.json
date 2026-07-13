@@ -1,0 +1,11 @@
+{
+  "name": "@traveller/tsconfig",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Shared TypeScript configs for the Traveller monorepo",
+  "files": [
+    "base.json",
+    "next.json",
+    "nest.json"
+  ]
+}

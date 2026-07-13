@@ -1,0 +1,9 @@
+{
+  "extends": "@traveller/tsconfig/nest.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "baseUrl": "."
+  },
+  "include": ["src", "test"],
+  "exclude": ["node_modules", "dist"]
+}
