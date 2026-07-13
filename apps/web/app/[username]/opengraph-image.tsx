@@ -31,7 +31,9 @@ export default async function OpengraphImage({
 
   const visited = new Set(profile?.countryCodes ?? []);
   const stats = computeStats(profile?.countryCodes ?? []);
-  const title = profile?.displayName ?? "Traveller";
+  // Lead with the nick (matches the page/tab title); the editable display
+  // name stays in the page header UI.
+  const title = profile ? `@${username}` : "Traveller";
   const subtitle = profile
     ? ogSubtitle(stats.visited, stats.percent)
     : "Mark the countries you have visited";

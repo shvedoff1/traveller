@@ -14,9 +14,12 @@ export function formatWorldPercent(percent: number): string {
   return `${percent}%`;
 }
 
-/** Page/OG title: "John Carter — 47 countries". */
-export function profileTitle(displayName: string, count: number): string {
-  return `${displayName} — ${formatCountryCount(count)}`;
+/**
+ * Page/OG title, led by the nick so the browser tab shows "@john — 47
+ * countries" rather than the (email-derived) display name.
+ */
+export function profileTitle(username: string, count: number): string {
+  return `@${username} — ${formatCountryCount(count)}`;
 }
 
 /** Meta description with the world share. */

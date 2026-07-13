@@ -35,7 +35,7 @@ export async function generateMetadata({
   const stats = await getPublicStats(username);
   const percent =
     stats?.worldPercent ?? computeStats(profile.countryCodes).percent;
-  const title = profileTitle(profile.displayName, profile.counts.countries);
+  const title = profileTitle(profile.username, profile.counts.countries);
   const description = profileDescription(
     profile.displayName,
     profile.counts.countries,
