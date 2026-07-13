@@ -13,7 +13,7 @@ function post(
   body: { email: string; website?: string },
 ): request.Test {
   return request(ctx.server)
-    .post("/auth/magic-link")
+    .post("/api/auth/magic-link")
     .set("X-Requested-With", "fetch")
     .send(body);
 }

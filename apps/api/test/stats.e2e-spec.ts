@@ -61,7 +61,7 @@ describe("stats (e2e)", () => {
 
   describe("GET /users/:username/stats", () => {
     it("computes counts, world percent and continents from the data", async () => {
-      const res = await request(ctx.server).get("/users/john/stats").expect(200);
+      const res = await request(ctx.server).get("/api/users/john/stats").expect(200);
 
       expect(res.body.countryCount).toBe(5);
       // 5 of 249 countries → 2.008…% → 2 (one decimal).
@@ -82,14 +82,14 @@ describe("stats (e2e)", () => {
     });
 
     it("reads follower counts from the Follow table", async () => {
-      const res = await request(ctx.server).get("/users/john/stats").expect(200);
+      const res = await request(ctx.server).get("/api/users/john/stats").expect(200);
       expect(res.body.followerCount).toBe(2);
       expect(res.body.followingCount).toBe(1);
     });
 
     it("returns zeros for a user without visits or followers", async () => {
       const res = await request(ctx.server)
-        .get("/users/kenji/stats")
+        .get("/api/users/kenji/stats")
         .expect(200);
       expect(res.body.countryCount).toBe(0);
       expect(res.body.worldPercent).toBe(0);
@@ -99,16 +99,16 @@ describe("stats (e2e)", () => {
     });
 
     it("is case-insensitive on the username", async () => {
-      const res = await request(ctx.server).get("/users/JOHN/stats").expect(200);
+      const res = await request(ctx.server).get("/api/users/JOHN/stats").expect(200);
       expect(res.body.countryCount).toBe(5);
     });
 
     it("404s for unknown users", async () => {
-      await request(ctx.server).get("/users/no_such_user/stats").expect(404);
+      await request(ctx.server).get("/api/users/no_such_user/stats").expect(404);
     });
 
     it("404s for malformed usernames", async () => {
-      await request(ctx.server).get("/users/Not--Valid!/stats").expect(404);
+      await request(ctx.server).get("/api/users/Not--Valid!/stats").expect(404);
     });
 
     it("404s for private profiles", async () => {
@@ -120,7 +120,7 @@ describe("stats (e2e)", () => {
           isPublic: false,
         },
       });
-      await request(ctx.server).get("/users/secret_stats/stats").expect(404);
+      await request(ctx.server).get("/api/users/secret_stats/stats").expect(404);
     });
   });
 });

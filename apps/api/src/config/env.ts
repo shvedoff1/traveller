@@ -15,8 +15,12 @@ const envSchema = z.object({
     .enum(["development", "test", "production"])
     .default("development"),
   PORT: z.coerce.number().int().min(1).max(65535).default(4000),
-  /** Public base URL of this API — used to build magic-link URLs. */
-  API_URL: z.string().url().default("http://localhost:4000"),
+  /**
+   * Public base URL of this API, including the `/api` global prefix — used to
+   * build magic-link verify and OAuth callback URLs (e.g.
+   * `https://traveller.shvedov.tech/api`).
+   */
+  API_URL: z.string().url().default("http://localhost:4000/api"),
   WEB_ORIGIN: z.string().url().default("http://localhost:3000"),
   DATABASE_URL: z.string().min(1),
   REDIS_URL: z.string().min(1),

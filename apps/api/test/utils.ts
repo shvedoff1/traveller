@@ -76,6 +76,7 @@ export async function createTestContext(
 
   const app = moduleRef.createNestApplication();
   app.use(cookieParser()); // matches main.ts middleware
+  app.setGlobalPrefix("api", { exclude: ["healthz"] }); // matches main.ts
   await app.init();
 
   return {
@@ -134,7 +135,7 @@ export async function requestMagicLinkToken(
   email: string,
 ): Promise<string> {
   await request(ctx.server)
-    .post("/auth/magic-link")
+    .post("/api/auth/magic-link")
     .set("X-Requested-With", "fetch")
     .send({ email })
     .expect(200);
@@ -152,7 +153,7 @@ export async function login(
 ): Promise<Session> {
   const token = await requestMagicLinkToken(ctx, email);
   const res = await request(ctx.server)
-    .get("/auth/magic-link/verify")
+    .get("/api/auth/magic-link/verify")
     .query({ token })
     .expect(302);
   return {

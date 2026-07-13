@@ -11,7 +11,7 @@ describe("parseEnv", () => {
   it("applies dev defaults for PORT, API_URL, WEB_ORIGIN and SMTP", () => {
     const env = parseEnv(REQUIRED);
     expect(env.PORT).toBe(4000);
-    expect(env.API_URL).toBe("http://localhost:4000");
+    expect(env.API_URL).toBe("http://localhost:4000/api");
     expect(env.WEB_ORIGIN).toBe("http://localhost:3000");
     expect(env.SMTP_HOST).toBe("localhost");
     expect(env.SMTP_PORT).toBe(1025);
