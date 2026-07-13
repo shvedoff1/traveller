@@ -68,7 +68,12 @@ export default async function ProfilePage({ params }: { params: Params }) {
   return (
     <main className="relative h-dvh w-full overflow-hidden">
       <div className="absolute inset-0">
-        <MapCanvas visited={profile.countryCodes} selected={null} readonly />
+        <MapCanvas
+          visited={profile.countryCodes}
+          selected={null}
+          readonly
+          showProjectionToggle
+        />
       </div>
       <ProfileHeader
         username={profile.username}

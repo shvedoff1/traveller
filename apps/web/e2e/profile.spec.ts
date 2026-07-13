@@ -68,6 +68,21 @@ test("public profile: logged-out render, share, casing redirect, OG image", asyn
   await expect(anonPage.getByTestId("stats-count")).toHaveText("1");
   await expect(anonPage.getByTestId("map-canvas")).toBeVisible();
   await expect(anonPage.getByTestId("edit-map-link")).toHaveCount(0);
+
+  // The tab title leads with the nick.
+  await expect(anonPage).toHaveTitle(`@${username} — 1 country`);
+
+  // Globe/flat projection toggle: defaults to globe, flips to flat, and
+  // the choice survives a reload in the same tab (sessionStorage).
+  const toggle = anonPage.getByTestId("projection-toggle");
+  await expect(toggle).toHaveAttribute("aria-label", "Switch to flat map");
+  await toggle.click();
+  await expect(toggle).toHaveAttribute("aria-label", "Switch to globe view");
+  await anonPage.reload();
+  await expect(anonPage.getByTestId("projection-toggle")).toHaveAttribute(
+    "aria-label",
+    "Switch to globe view",
+  );
   // Logged out, the follow button is a login CTA.
   await expect(anonPage.getByTestId("follow-button")).toHaveAttribute(
     "href",

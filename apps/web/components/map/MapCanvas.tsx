@@ -134,18 +134,25 @@ export function MapCanvas({
       if (!map.getLayer(LAYER_VISITED)) return;
       applyCompareFilters(map, visitedRef.current, friendVisitedRef.current);
       map.setFilter(LAYER_SELECTED, buildSelectedFilter(selectedRef.current));
+      // Apply the active projection once the style is ready (covers the
+      // restore-on-mount case, where the map isn't loaded yet).
+      if (projectionRef.current !== "globe") {
+        map.setProjection({ type: projectionRef.current });
+      }
     };
     map.on("load", applyFilters);
 
     // Restore the per-tab projection choice (globe by default) once the
-    // toggle capability is enabled.
+    // toggle capability is enabled. Set state now (so the control reflects
+    // it immediately); apply to the map only if the style is already loaded,
+    // otherwise `applyFilters` handles it on the `load` event.
     if (projectionToggleRef.current) {
       const stored = readProjection(
         typeof window === "undefined" ? null : window.sessionStorage,
       );
       if (stored !== "globe") {
-        map.setProjection({ type: stored });
         setProjection(stored);
+        if (map.isStyleLoaded()) map.setProjection({ type: stored });
       }
     }
 
@@ -313,7 +320,7 @@ export function MapCanvas({
     const map = mapRef.current;
     const next = nextProjection(projectionRef.current);
     setProjection(next);
-    map?.setProjection({ type: next });
+    if (map?.isStyleLoaded()) map.setProjection({ type: next });
     persistProjection(
       typeof window === "undefined" ? null : window.sessionStorage,
       next,
