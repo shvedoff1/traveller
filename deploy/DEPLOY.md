@@ -38,13 +38,12 @@ Let's Encrypt cert automatically.
 Magic-link login is the primary auth path, so a working SMTP sender is required.
 
 1. [Resend](https://resend.com) account.
-2. **Add & verify a domain** — recommended subdomain `mail.shvedov.tech`
-   (isolates sender reputation). Add the DKIM/SPF/MX records Resend shows;
-   verification must go green.
+2. **Add & verify a domain** (`traveller.shvedov.tech`) — add the DKIM/SPF/MX
+   records Resend shows; verification must go green.
 3. Create an **API key** (`re_...`, "Sending access").
-4. The default sender is `Traveller <login@mail.shvedov.tech>`. If your verified
-   domain differs, set a `MAIL_FROM` **repo variable** in the blog repo to
-   override. `SMTP_HOST=smtp.resend.com`, port 465, user `resend` are already
+4. The default sender is `Traveller <login@traveller.shvedov.tech>`. If your
+   verified domain differs, set a `MAIL_FROM` **repo variable** in the blog repo
+   to override. `SMTP_HOST=smtp.resend.com`, port 465, user `resend` are already
    baked in. (Brevo also works: `smtp-relay.brevo.com`, 587, non-secure.)
 
 Resend's free tier is 100 emails/day; the app's global daily cap defaults to
