@@ -10,6 +10,11 @@ import { THEME_INIT_SCRIPT } from "../lib/theme";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
+  // Absolute base for OG/Twitter image + share URLs. In prod this is the
+  // public site origin; falls back to localhost in dev.
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:3000",
+  ),
   title: "Traveller",
   description: "Mark the countries you have visited on an interactive globe.",
 };

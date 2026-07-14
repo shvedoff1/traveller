@@ -33,7 +33,7 @@ describe("visits (e2e)", () => {
 
   describe("PUT /me/visits/:countryCode", () => {
     it("creates a visit, then updates it in place (idempotent upsert)", async () => {
-      const created = await authed("put", "/me/visits/FR")
+      const created = await authed("put", "/api/me/visits/FR")
         .send({})
         .expect(200);
       expect(created.body).toEqual({
@@ -43,7 +43,7 @@ describe("visits (e2e)", () => {
         createdAt: expect.stringMatching(/^\d{4}-\d{2}-\d{2}T/),
       });
 
-      const updated = await authed("put", "/me/visits/FR")
+      const updated = await authed("put", "/api/me/visits/FR")
         .send({ visitedYear: 2019, note: "Paris in spring" })
         .expect(200);
       expect(updated.body).toEqual({
@@ -54,47 +54,47 @@ describe("visits (e2e)", () => {
       });
 
       // Still a single row for the pair.
-      const list = await authed("get", "/me/visits").expect(200);
+      const list = await authed("get", "/api/me/visits").expect(200);
       expect(list.body).toEqual([updated.body]);
     });
 
     it("replaces year/note on PUT — omitted fields clear", async () => {
-      await authed("put", "/me/visits/JP")
+      await authed("put", "/api/me/visits/JP")
         .send({ visitedYear: 2020, note: "Tokyo" })
         .expect(200);
-      const res = await authed("put", "/me/visits/JP").send({}).expect(200);
+      const res = await authed("put", "/api/me/visits/JP").send({}).expect(200);
       expect(res.body.visitedYear).toBeNull();
       expect(res.body.note).toBeNull();
     });
 
     it("normalises lowercase codes to uppercase", async () => {
-      const res = await authed("put", "/me/visits/br").send({}).expect(200);
+      const res = await authed("put", "/api/me/visits/br").send({}).expect(200);
       expect(res.body.countryCode).toBe("BR");
     });
 
     it("rejects unknown country codes with 400", async () => {
-      await authed("put", "/me/visits/ZZ").send({}).expect(400);
-      await authed("put", "/me/visits/FRA").send({}).expect(400);
-      await authed("put", "/me/visits/XK").send({}).expect(400); // not ISO
+      await authed("put", "/api/me/visits/ZZ").send({}).expect(400);
+      await authed("put", "/api/me/visits/FRA").send({}).expect(400);
+      await authed("put", "/api/me/visits/XK").send({}).expect(400); // not ISO
     });
 
     it("rejects invalid years with 400", async () => {
-      await authed("put", "/me/visits/FR")
+      await authed("put", "/api/me/visits/FR")
         .send({ visitedYear: 1899 })
         .expect(400);
-      await authed("put", "/me/visits/FR")
+      await authed("put", "/api/me/visits/FR")
         .send({ visitedYear: CURRENT_YEAR + 1 })
         .expect(400);
-      await authed("put", "/me/visits/FR")
+      await authed("put", "/api/me/visits/FR")
         .send({ visitedYear: "2019" })
         .expect(400);
     });
 
     it("rejects over-long notes and unknown keys with 400", async () => {
-      await authed("put", "/me/visits/FR")
+      await authed("put", "/api/me/visits/FR")
         .send({ note: "x".repeat(281) })
         .expect(400);
-      await authed("put", "/me/visits/FR")
+      await authed("put", "/api/me/visits/FR")
         .send({ countryCode: "FR" })
         .expect(400);
     });
@@ -102,17 +102,17 @@ describe("visits (e2e)", () => {
 
   describe("DELETE /me/visits/:countryCode", () => {
     it("deletes idempotently — 204 even when absent", async () => {
-      await authed("put", "/me/visits/DE").send({}).expect(200);
-      await authed("delete", "/me/visits/DE").expect(204);
-      await authed("delete", "/me/visits/DE").expect(204); // already gone
+      await authed("put", "/api/me/visits/DE").send({}).expect(200);
+      await authed("delete", "/api/me/visits/DE").expect(204);
+      await authed("delete", "/api/me/visits/DE").expect(204); // already gone
 
-      const list = await authed("get", "/me/visits").expect(200);
+      const list = await authed("get", "/api/me/visits").expect(200);
       const codes = list.body.map((v: { countryCode: string }) => v.countryCode);
       expect(codes).not.toContain("DE");
     });
 
     it("rejects unknown country codes with 400", async () => {
-      await authed("delete", "/me/visits/ZZ").expect(400);
+      await authed("delete", "/api/me/visits/ZZ").expect(400);
     });
   });
 
@@ -121,7 +121,7 @@ describe("visits (e2e)", () => {
       const fresh = await login(ctx, "roundtrip@example.com");
       const put = (code: string, body: object) =>
         request(ctx.server)
-          .put(`/me/visits/${code}`)
+          .put(`/api/me/visits/${code}`)
           .set("X-Requested-With", "fetch")
           .set("Cookie", `access_token=${fresh.accessToken}`)
           .send(body)
@@ -132,7 +132,7 @@ describe("visits (e2e)", () => {
       await put("FR", { visitedYear: 2023 });
 
       const res = await request(ctx.server)
-        .get("/me/visits")
+        .get("/api/me/visits")
         .set("Cookie", `access_token=${fresh.accessToken}`)
         .expect(200);
       expect(res.body).toEqual([
@@ -149,7 +149,7 @@ describe("visits (e2e)", () => {
     it("does not leak other users' visits", async () => {
       const stranger = await login(ctx, "stranger@example.com");
       const res = await request(ctx.server)
-        .get("/me/visits")
+        .get("/api/me/visits")
         .set("Cookie", `access_token=${stranger.accessToken}`)
         .expect(200);
       expect(res.body).toEqual([]);
@@ -158,21 +158,21 @@ describe("visits (e2e)", () => {
 
   describe("auth and CSRF", () => {
     it("returns 401 without a session on every route", async () => {
-      await request(ctx.server).get("/me/visits").expect(401);
+      await request(ctx.server).get("/api/me/visits").expect(401);
       await request(ctx.server)
-        .put("/me/visits/FR")
+        .put("/api/me/visits/FR")
         .set("X-Requested-With", "fetch")
         .send({})
         .expect(401);
       await request(ctx.server)
-        .delete("/me/visits/FR")
+        .delete("/api/me/visits/FR")
         .set("X-Requested-With", "fetch")
         .expect(401);
     });
 
     it("rejects mutations without the CSRF header", async () => {
       await request(ctx.server)
-        .put("/me/visits/FR")
+        .put("/api/me/visits/FR")
         .set("Cookie", `access_token=${session.accessToken}`)
         .send({})
         .expect(403);

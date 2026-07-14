@@ -18,6 +18,12 @@ async function bootstrap(): Promise<void> {
   // correct without letting clients spoof arbitrary addresses.
   if (env.TRUST_PROXY) app.set("trust proxy", 1);
 
+  // Every app route lives under `/api` — the path is preserved end to end
+  // (dev Next rewrite, prod Caddy) so the refresh cookie's `/api/auth/refresh`
+  // path matches the browser-visible URL. The health probe is excluded so
+  // infra can hit `http://traveller-api:4000/healthz` without the prefix.
+  app.setGlobalPrefix("api", { exclude: ["healthz"] });
+
   // Web-independent JSON API: a deny-all CSP (nothing is ever rendered),
   // no framing, no MIME sniffing. helmet's defaults cover the rest.
   app.use(

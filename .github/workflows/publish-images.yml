@@ -1,0 +1,74 @@
+name: Publish images
+
+# Build the api + web images and push them to GHCR. That is ALL this repo does
+# for deployment — it holds no deploy/SSH/app secrets. Rolling the VPS forward
+# is driven from the blog repo's "deploy traveller" workflow (which owns the
+# SSH access), so the machine credentials live in exactly one place.
+#
+# Kept separate from ci.yml (lint/test/build on every push); this runs only on
+# main and on manual dispatch.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: publish-images
+  cancel-in-progress: false
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_OWNER: shvedoff1
+  # Baked into the web client bundle at build time (see apps/web/Dockerfile).
+  SITE_URL: https://traveller.shvedov.tech
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      matrix:
+        include:
+          - app: api
+            dockerfile: apps/api/Dockerfile
+          - app: web
+            dockerfile: apps/web/Dockerfile
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Image metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_OWNER }}/traveller-${{ matrix.app }}
+          tags: |
+            type=raw,value=latest
+            type=sha,prefix=sha-,format=short
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ${{ matrix.dockerfile }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          # NEXT_PUBLIC_* is inlined at build time; ignored by the api image.
+          build-args: |
+            NEXT_PUBLIC_SITE_URL=${{ env.SITE_URL }}
+          cache-from: type=gha,scope=traveller-${{ matrix.app }}
+          cache-to: type=gha,mode=max,scope=traveller-${{ matrix.app }}

@@ -1,6 +1,7 @@
 import { type APIRequestContext, expect } from "@playwright/test";
 
-export const API = "http://localhost:4000";
+// The API serves under the `/api` global prefix (matching Caddy in prod).
+export const API = "http://localhost:4000/api";
 export const MAILPIT = "http://localhost:8025";
 
 /**

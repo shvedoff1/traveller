@@ -33,20 +33,20 @@ describe("rate limits (e2e)", () => {
 
     it("429s once an IP exceeds its budget, on any route", async () => {
       for (let i = 0; i < 5; i += 1) {
-        await request(ctx.server).get("/auth/providers").expect(200);
+        await request(ctx.server).get("/api/auth/providers").expect(200);
       }
       const blocked = await request(ctx.server)
-        .get("/auth/providers")
+        .get("/api/auth/providers")
         .expect(429);
       expect(blocked.body.message).toBe(DEFAULT_RATE_LIMITS.global.message);
 
       // Applies across routes — the same IP is blocked everywhere…
-      await request(ctx.server).get("/me/visits").expect(429);
+      await request(ctx.server).get("/api/me/visits").expect(429);
     });
 
     it("never limits the health check", async () => {
       for (let i = 0; i < 7; i += 1) {
-        await request(ctx.server).get("/auth/providers");
+        await request(ctx.server).get("/api/auth/providers");
       }
       await request(ctx.server).get("/healthz").expect(200);
     });
@@ -79,20 +79,20 @@ describe("rate limits (e2e)", () => {
       const codes = ["FR", "JP"];
       for (const code of codes) {
         await request(ctx.server)
-          .put(`/me/visits/${code}`)
+          .put(`/api/me/visits/${code}`)
           .set("Cookie", cookies)
           .set("X-Requested-With", "fetch")
           .send({})
           .expect(200);
       }
       await request(ctx.server)
-        .delete("/me/visits/JP")
+        .delete("/api/me/visits/JP")
         .set("Cookie", cookies)
         .set("X-Requested-With", "fetch")
         .expect(204);
 
       const blocked = await request(ctx.server)
-        .put("/me/visits/BR")
+        .put("/api/me/visits/BR")
         .set("Cookie", cookies)
         .set("X-Requested-With", "fetch")
         .send({})
@@ -103,7 +103,7 @@ describe("rate limits (e2e)", () => {
 
       // Reads stay unaffected.
       const list = await request(ctx.server)
-        .get("/me/visits")
+        .get("/api/me/visits")
         .set("Cookie", cookies)
         .expect(200);
       expect(list.body).toHaveLength(1);
@@ -124,14 +124,14 @@ describe("rate limits (e2e)", () => {
       ];
       for (const code of ["FR", "JP", "BR"]) {
         await request(ctx.server)
-          .put(`/me/visits/${code}`)
+          .put(`/api/me/visits/${code}`)
           .set("Cookie", firstCookies)
           .set("X-Requested-With", "fetch")
           .send({})
           .expect(200);
       }
       await request(ctx.server)
-        .put("/me/visits/AR")
+        .put("/api/me/visits/AR")
         .set("Cookie", firstCookies)
         .set("X-Requested-With", "fetch")
         .send({})
@@ -140,7 +140,7 @@ describe("rate limits (e2e)", () => {
       // A different user still has a full budget.
       const second = await login(ctx, "second@example.com");
       await request(ctx.server)
-        .put("/me/visits/AR")
+        .put("/api/me/visits/AR")
         .set("Cookie", [
           `access_token=${second.accessToken}`,
           `refresh_token=${second.refreshToken}`,

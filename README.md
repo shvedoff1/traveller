@@ -63,6 +63,10 @@ config fails fast). See `.env.example` for the full commented list.
 | `GOOGLE_CLIENT_SECRET` |          | unset                          | Google OAuth secret                                  |
 | `OAUTH_CALLBACK_URL`   |          | unset                          | Google callback (on the API)                         |
 | `SMTP_HOST`/`SMTP_PORT`|          | `localhost`/`1025`             | Magic-link mail (Mailpit in dev)                     |
+| `SMTP_USER`/`SMTP_PASS`|          | unset                          | SMTP auth — all-or-nothing (see Production email)    |
+| `SMTP_SECURE`          |          | `false`                        | `true` → implicit TLS (465); else STARTTLS           |
+| `MAIL_FROM`            |          | dev default                    | From header for outgoing mail                        |
+| `MAGIC_LINK_*_MAX`     |          | `5`/`10`/`20`/`200`            | Magic-link anti-abuse caps (IP / daily / global)     |
 | `COOKIE_DOMAIN`        |          | unset                          | Cookie domain (leave empty for host-only)            |
 | `TRUST_PROXY`          |          | `false`                        | `true` behind a reverse proxy (real client IPs)      |
 | `NEXT_PUBLIC_API_URL`  |          | `/api`                         | Browser → API base URL (web build-time)              |
@@ -115,6 +119,30 @@ The two apps deploy independently:
 - **Cookies**: the API sets auth cookies for its own host. Serve web + API
   under one site (e.g. `app.example.com` + `api.example.com` with
   `COOKIE_DOMAIN=.example.com`) or proxy `/api/*` same-origin.
+
+### Production email
+
+In dev, magic links land in Mailpit with no configuration. For production,
+point the API at a real SMTP provider:
+
+- **Resend** — `SMTP_HOST=smtp.resend.com`, `SMTP_USER=resend`,
+  `SMTP_PASS=<your API key>`, `SMTP_PORT=587` (STARTTLS, `SMTP_SECURE=false`).
+- **Brevo** — `SMTP_HOST=smtp-relay.brevo.com`, `SMTP_USER=<login>`,
+  `SMTP_PASS=<SMTP key>`. Use `SMTP_PORT=465` with `SMTP_SECURE=true` for
+  implicit TLS, or `587`/STARTTLS.
+
+`SMTP_USER` and `SMTP_PASS` are required together (the API fails fast at boot
+if only one is set). Set `MAIL_FROM` to a verified sender, e.g.
+`Traveller <login@yourdomain.tech>`.
+
+The `POST /auth/magic-link` endpoint is safe to expose publicly: it is
+throttled per-email (3/15min, 10/day) and per-IP (5/15min, 20/day), with a
+service-wide 200/day ceiling that protects the provider quota by silently
+skipping sends once reached. A hidden honeypot field drops bot submissions.
+All responses are non-enumerating — the same `200 {ok:true}` whether a link
+was sent, skipped, or the address is unknown. Behind a reverse proxy set
+`TRUST_PROXY=true` so the per-IP limits see the real client address. Tune the
+caps via the `MAGIC_LINK_*_MAX` env vars.
 
 ## Repo conventions
 

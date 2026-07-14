@@ -13,13 +13,22 @@ import { type RateLimitRule } from "./rate-limit.constants";
 export class RateLimitService {
   constructor(@Inject(REDIS_CLIENT) private readonly redis: Redis) {}
 
-  /** Throws 429 (with the rule's message) when `key` exceeds the rule. */
-  async consume(key: string, rule: RateLimitRule): Promise<void> {
+  /**
+   * INCR the key (opening the window on first hit) and report whether it is
+   * still within budget. Returns `false` once the rule's max is exceeded —
+   * for callers that want to skip silently rather than 429.
+   */
+  async tryConsume(key: string, rule: RateLimitRule): Promise<boolean> {
     const count = await this.redis.incr(key);
     if (count === 1) {
       await this.redis.expire(key, rule.windowSeconds);
     }
-    if (count > rule.max) {
+    return count <= rule.max;
+  }
+
+  /** Throws 429 (with the rule's message) when `key` exceeds the rule. */
+  async consume(key: string, rule: RateLimitRule): Promise<void> {
+    if (!(await this.tryConsume(key, rule))) {
       throw new HttpException(rule.message, HttpStatus.TOO_MANY_REQUESTS);
     }
   }

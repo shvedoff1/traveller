@@ -18,7 +18,9 @@ import { loadEnv } from "../../config/env";
 import { TokenService } from "./token.service";
 
 const OAUTH_STATE_COOKIE = "oauth_state";
-const STATE_COOKIE_PATH = "/auth/google";
+// Scoped to the browser-visible OAuth path (served under the `/api` prefix)
+// so the state cookie is sent back on `/api/auth/google/callback`.
+const STATE_COOKIE_PATH = "/api/auth/google";
 
 /** Kicks off the Google redirect with a signed `state` in a short-lived cookie. */
 @Injectable()

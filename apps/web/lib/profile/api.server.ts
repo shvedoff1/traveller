@@ -12,8 +12,12 @@ import {
 } from "@traveller/shared";
 import { type ZodType } from "zod";
 
-/** The API origin as seen from the Next server (not the browser). */
-const API_URL = process.env.API_URL ?? "http://localhost:4000";
+/**
+ * The API origin as seen from the Next server (not the browser). In prod this
+ * is the internal container URL `http://traveller-api:4000`; SSR calls target
+ * the `/api` global prefix directly (no reverse proxy on this hop).
+ */
+const API_BASE = `${process.env.API_INTERNAL_URL ?? "http://localhost:4000"}/api`;
 
 export const PROFILE_REVALIDATE_SECONDS = 60;
 
@@ -21,7 +25,7 @@ async function fetchPublic<T>(
   path: string,
   schema: ZodType<T>,
 ): Promise<T | null> {
-  const response = await fetch(`${API_URL}${path}`, {
+  const response = await fetch(`${API_BASE}${path}`, {
     next: { revalidate: PROFILE_REVALIDATE_SECONDS },
   });
   if (!response.ok) return null;

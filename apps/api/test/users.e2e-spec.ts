@@ -24,7 +24,7 @@ describe("users (e2e)", () => {
       const session = await login(ctx, "claimer@example.com");
 
       const res = await request(ctx.server)
-        .patch("/me")
+        .patch("/api/me")
         .set("X-Requested-With", "fetch")
         .set("Cookie", `access_token=${session.accessToken}`)
         .send({ username: "claimer" })
@@ -36,7 +36,7 @@ describe("users (e2e)", () => {
 
       // Persisted: /auth/me reflects the claim.
       const me = await request(ctx.server)
-        .get("/auth/me")
+        .get("/api/auth/me")
         .set("Cookie", `access_token=${session.accessToken}`)
         .expect(200);
       expect(me.body.username).toBe("claimer");
@@ -45,7 +45,7 @@ describe("users (e2e)", () => {
     it("updates displayName", async () => {
       const session = await login(ctx, "renamer@example.com");
       const res = await request(ctx.server)
-        .patch("/me")
+        .patch("/api/me")
         .set("X-Requested-With", "fetch")
         .set("Cookie", `access_token=${session.accessToken}`)
         .send({ displayName: "The Renamer" })
@@ -56,7 +56,7 @@ describe("users (e2e)", () => {
     it("returns 409 when the username is already taken", async () => {
       const first = await login(ctx, "first-taker@example.com");
       await request(ctx.server)
-        .patch("/me")
+        .patch("/api/me")
         .set("X-Requested-With", "fetch")
         .set("Cookie", `access_token=${first.accessToken}`)
         .send({ username: "duplicated" })
@@ -64,7 +64,7 @@ describe("users (e2e)", () => {
 
       const second = await login(ctx, "second-taker@example.com");
       await request(ctx.server)
-        .patch("/me")
+        .patch("/api/me")
         .set("X-Requested-With", "fetch")
         .set("Cookie", `access_token=${second.accessToken}`)
         .send({ username: "duplicated" })
@@ -75,7 +75,7 @@ describe("users (e2e)", () => {
       const session = await login(ctx, "invalid@example.com");
       const patch = (body: object): request.Test =>
         request(ctx.server)
-          .patch("/me")
+          .patch("/api/me")
           .set("X-Requested-With", "fetch")
           .set("Cookie", `access_token=${session.accessToken}`)
           .send(body);
@@ -88,7 +88,7 @@ describe("users (e2e)", () => {
 
     it("returns 401 without a session", async () => {
       await request(ctx.server)
-        .patch("/me")
+        .patch("/api/me")
         .set("X-Requested-With", "fetch")
         .send({ username: "anonymous" })
         .expect(401);
@@ -118,7 +118,7 @@ describe("users (e2e)", () => {
         data: { followerId: fan.id, followeeId: user.id },
       });
 
-      const res = await request(ctx.server).get("/users/profiled").expect(200);
+      const res = await request(ctx.server).get("/api/users/profiled").expect(200);
       expect(res.body).toEqual({
         username: "profiled",
         displayName: "Profiled",
@@ -129,16 +129,16 @@ describe("users (e2e)", () => {
     });
 
     it("is case-insensitive thanks to citext", async () => {
-      const res = await request(ctx.server).get("/users/PROFILED").expect(200);
+      const res = await request(ctx.server).get("/api/users/PROFILED").expect(200);
       expect(res.body.username).toBe("profiled");
     });
 
     it("404s for unknown users", async () => {
-      await request(ctx.server).get("/users/no_such_user").expect(404);
+      await request(ctx.server).get("/api/users/no_such_user").expect(404);
     });
 
     it("404s for malformed usernames", async () => {
-      await request(ctx.server).get("/users/Invalid--Name!").expect(404);
+      await request(ctx.server).get("/api/users/Invalid--Name!").expect(404);
     });
 
     it("404s for private profiles", async () => {
@@ -150,7 +150,7 @@ describe("users (e2e)", () => {
           isPublic: false,
         },
       });
-      await request(ctx.server).get("/users/hidden").expect(404);
+      await request(ctx.server).get("/api/users/hidden").expect(404);
     });
   });
 });

@@ -35,7 +35,7 @@ export async function generateMetadata({
   const stats = await getPublicStats(username);
   const percent =
     stats?.worldPercent ?? computeStats(profile.countryCodes).percent;
-  const title = profileTitle(profile.displayName, profile.counts.countries);
+  const title = profileTitle(profile.username, profile.counts.countries);
   const description = profileDescription(
     profile.displayName,
     profile.counts.countries,
@@ -68,7 +68,12 @@ export default async function ProfilePage({ params }: { params: Params }) {
   return (
     <main className="relative h-dvh w-full overflow-hidden">
       <div className="absolute inset-0">
-        <MapCanvas visited={profile.countryCodes} selected={null} readonly />
+        <MapCanvas
+          visited={profile.countryCodes}
+          selected={null}
+          readonly
+          showProjectionToggle
+        />
       </div>
       <ProfileHeader
         username={profile.username}

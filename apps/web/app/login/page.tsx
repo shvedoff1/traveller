@@ -10,6 +10,9 @@ const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "/api";
 
 export default function LoginPage() {
   const [email, setEmail] = useState("");
+  // Honeypot: real users never see or fill this; bots that auto-fill inputs
+  // do, and the API silently drops those requests.
+  const [website, setWebsite] = useState("");
   const [sentTo, setSentTo] = useState<string | null>(null);
 
   const { data: providers } = useQuery({
@@ -19,14 +22,14 @@ export default function LoginPage() {
 
   const sendLink = useMutation({
     mutationFn: api.requestMagicLink,
-    onSuccess: (_data, requestedEmail) => setSentTo(requestedEmail),
+    onSuccess: (_data, variables) => setSentTo(variables.email),
   });
 
   const parsed = emailSchema.safeParse(email);
 
   function onSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (parsed.success) sendLink.mutate(parsed.data);
+    if (parsed.success) sendLink.mutate({ email: parsed.data, website });
   }
 
   return (
@@ -63,6 +66,24 @@ export default function LoginPage() {
             ) : null}
 
             <form onSubmit={onSubmit} className="mt-6 space-y-3">
+              {/* Honeypot: off-screen, non-focusable, hidden from AT. Only
+                  bots fill it; a non-empty value makes the API drop the send. */}
+              <div
+                aria-hidden="true"
+                className="absolute h-0 w-0 overflow-hidden"
+                style={{ left: "-9999px" }}
+              >
+                <label htmlFor="website">Website</label>
+                <input
+                  id="website"
+                  type="text"
+                  name="website"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  value={website}
+                  onChange={(event) => setWebsite(event.target.value)}
+                />
+              </div>
               <label className="block text-sm" htmlFor="email">
                 Email address
               </label>

@@ -27,9 +27,9 @@ describe("formatWorldPercent", () => {
 });
 
 describe("profileTitle", () => {
-  it("builds the page/OG title", () => {
-    expect(profileTitle("John Carter", 47)).toBe("John Carter — 47 countries");
-    expect(profileTitle("Solo", 1)).toBe("Solo — 1 country");
+  it("builds the page/OG title led by the nick", () => {
+    expect(profileTitle("john", 47)).toBe("@john — 47 countries");
+    expect(profileTitle("solo", 1)).toBe("@solo — 1 country");
   });
 });
 

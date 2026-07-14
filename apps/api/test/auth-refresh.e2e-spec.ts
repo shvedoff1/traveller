@@ -11,7 +11,7 @@ import {
 
 function refresh(ctx: TestContext, refreshToken: string): request.Test {
   return request(ctx.server)
-    .post("/auth/refresh")
+    .post("/api/auth/refresh")
     .set("X-Requested-With", "fetch")
     .set("Cookie", `refresh_token=${refreshToken}`);
 }
@@ -36,7 +36,7 @@ describe("refresh rotation + logout (e2e)", () => {
     const newRefresh = getCookie(res, "refresh_token");
 
     expect(newRefresh.value).not.toBe(session.refreshToken);
-    expect(newRefresh.raw).toContain("Path=/auth/refresh");
+    expect(newRefresh.raw).toContain("Path=/api/auth/refresh");
     expect(newAccess.value.split(".")).toHaveLength(3); // JWT shape
 
     // The rotated (newest) token keeps working.
@@ -44,7 +44,7 @@ describe("refresh rotation + logout (e2e)", () => {
 
     // The new access token authenticates.
     await request(ctx.server)
-      .get("/auth/me")
+      .get("/api/auth/me")
       .set("Cookie", `access_token=${newAccess.value}`)
       .expect(200);
   });
@@ -72,7 +72,7 @@ describe("refresh rotation + logout (e2e)", () => {
 
   it("rejects a missing or unknown refresh token with 401", async () => {
     await request(ctx.server)
-      .post("/auth/refresh")
+      .post("/api/auth/refresh")
       .set("X-Requested-With", "fetch")
       .expect(401);
     await refresh(ctx, "bogus-token").expect(401);
@@ -83,7 +83,7 @@ describe("refresh rotation + logout (e2e)", () => {
     const session: Session = await login(ctx, email);
 
     const res = await request(ctx.server)
-      .post("/auth/logout")
+      .post("/api/auth/logout")
       .set("X-Requested-With", "fetch")
       .set("Cookie", `access_token=${session.accessToken}`)
       .expect(200);
@@ -93,7 +93,7 @@ describe("refresh rotation + logout (e2e)", () => {
     expect(cleared.value).toBe("");
     expect(cleared.raw).toContain("Expires=Thu, 01 Jan 1970");
     expect(getCookie(res, "refresh_token").raw).toContain(
-      "Path=/auth/refresh",
+      "Path=/api/auth/refresh",
     );
 
     // The refresh token family is revoked server-side.
@@ -107,7 +107,7 @@ describe("refresh rotation + logout (e2e)", () => {
 
   it("logout without a session still clears cookies", async () => {
     await request(ctx.server)
-      .post("/auth/logout")
+      .post("/api/auth/logout")
       .set("X-Requested-With", "fetch")
       .expect(200);
   });

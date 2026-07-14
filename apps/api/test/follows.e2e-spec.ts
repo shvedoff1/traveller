@@ -14,33 +14,33 @@ function asUser(ctx: TestContext, session: Session) {
   return {
     patchMe: (body: object) =>
       request(ctx.server)
-        .patch("/me")
+        .patch("/api/me")
         .set("X-Requested-With", "fetch")
         .set("Cookie", cookie)
         .send(body),
     follow: (username: string) =>
       request(ctx.server)
-        .post(`/users/${username}/follow`)
+        .post(`/api/users/${username}/follow`)
         .set("X-Requested-With", "fetch")
         .set("Cookie", cookie),
     unfollow: (username: string) =>
       request(ctx.server)
-        .delete(`/users/${username}/follow`)
+        .delete(`/api/users/${username}/follow`)
         .set("X-Requested-With", "fetch")
         .set("Cookie", cookie),
     following: () =>
-      request(ctx.server).get("/me/following").set("Cookie", cookie),
+      request(ctx.server).get("/api/me/following").set("Cookie", cookie),
     followers: () =>
-      request(ctx.server).get("/me/followers").set("Cookie", cookie),
+      request(ctx.server).get("/api/me/followers").set("Cookie", cookie),
     friendsMap: () =>
-      request(ctx.server).get("/me/friends-map").set("Cookie", cookie),
+      request(ctx.server).get("/api/me/friends-map").set("Cookie", cookie),
     search: (q: string) =>
       request(ctx.server)
-        .get("/users/search")
+        .get("/api/users/search")
         .query({ q })
         .set("Cookie", cookie),
     profile: (username: string) =>
-      request(ctx.server).get(`/users/${username}`).set("Cookie", cookie),
+      request(ctx.server).get(`/api/users/${username}`).set("Cookie", cookie),
   };
 }
 
@@ -85,11 +85,11 @@ describe("follows (e2e)", () => {
 
       // Prime BOTH users' stats caches so the follow must invalidate them.
       const statsBefore = await request(ctx.server)
-        .get("/users/maria/stats")
+        .get("/api/users/maria/stats")
         .expect(200);
       expect(statsBefore.body.followerCount).toBe(0);
       const myStatsBefore = await request(ctx.server)
-        .get("/users/john/stats")
+        .get("/api/users/john/stats")
         .expect(200);
       expect(myStatsBefore.body.followingCount).toBe(0);
       expect(await ctx.redis.exists("stats:maria")).toBe(1);
@@ -103,11 +103,11 @@ describe("follows (e2e)", () => {
 
       // … so counts update immediately, without waiting for the TTL.
       const statsAfter = await request(ctx.server)
-        .get("/users/maria/stats")
+        .get("/api/users/maria/stats")
         .expect(200);
       expect(statsAfter.body.followerCount).toBe(1);
       const myStatsAfter = await request(ctx.server)
-        .get("/users/john/stats")
+        .get("/api/users/john/stats")
         .expect(200);
       expect(myStatsAfter.body.followingCount).toBe(1);
 
@@ -154,7 +154,7 @@ describe("follows (e2e)", () => {
       await asUser(ctx, john).unfollow("no_such_user").expect(404);
 
       await request(ctx.server)
-        .post("/users/john/follow")
+        .post("/api/users/john/follow")
         .set("X-Requested-With", "fetch")
         .expect(401);
     });
@@ -165,15 +165,15 @@ describe("follows (e2e)", () => {
       await asUser(ctx, john).follow("maria").expect(204);
 
       // Prime the caches with the followed state.
-      await request(ctx.server).get("/users/maria/stats").expect(200);
-      await request(ctx.server).get("/users/john/stats").expect(200);
+      await request(ctx.server).get("/api/users/maria/stats").expect(200);
+      await request(ctx.server).get("/api/users/john/stats").expect(200);
 
       await asUser(ctx, john).unfollow("maria").expect(204);
       expect(await ctx.redis.exists("stats:maria")).toBe(0);
       expect(await ctx.redis.exists("stats:john")).toBe(0);
 
       const statsAfter = await request(ctx.server)
-        .get("/users/maria/stats")
+        .get("/api/users/maria/stats")
         .expect(200);
       expect(statsAfter.body.followerCount).toBe(0);
       const following = await asUser(ctx, john).following().expect(200);
@@ -196,14 +196,14 @@ describe("follows (e2e)", () => {
 
       // Authenticated read reflects the follow — even when the profile
       // body itself is served from the cache.
-      await request(ctx.server).get("/users/maria").expect(200); // prime cache
+      await request(ctx.server).get("/api/users/maria").expect(200); // prime cache
       expect(await ctx.redis.exists("profile:maria")).toBe(1);
       const after = await asUser(ctx, john).profile("maria").expect(200);
       expect(after.body.isFollowing).toBe(true);
       expect(after.body.counts.followers).toBe(1);
 
       // Anonymous reads never carry the per-viewer flag …
-      const anon = await request(ctx.server).get("/users/maria").expect(200);
+      const anon = await request(ctx.server).get("/api/users/maria").expect(200);
       expect(anon.body.isFollowing).toBeUndefined();
 
       // … and the cached entry stays viewer-free.
@@ -298,9 +298,9 @@ describe("follows (e2e)", () => {
     });
 
     it("401s without a session", async () => {
-      await request(ctx.server).get("/me/friends-map").expect(401);
-      await request(ctx.server).get("/me/following").expect(401);
-      await request(ctx.server).get("/me/followers").expect(401);
+      await request(ctx.server).get("/api/me/friends-map").expect(401);
+      await request(ctx.server).get("/api/me/following").expect(401);
+      await request(ctx.server).get("/api/me/followers").expect(401);
     });
   });
 
@@ -406,7 +406,7 @@ describe("follows (e2e)", () => {
 
     it("401s without a session (and is not shadowed by /users/:username)", async () => {
       // Would be 404 if the profile route captured "search" as a handle.
-      await request(ctx.server).get("/users/search").query({ q: "x" }).expect(401);
+      await request(ctx.server).get("/api/users/search").query({ q: "x" }).expect(401);
     });
   });
 });

@@ -13,6 +13,7 @@ describe("GET /healthz (e2e)", () => {
     }).compile();
 
     app = moduleRef.createNestApplication();
+    app.setGlobalPrefix("api", { exclude: ["healthz"] }); // matches main.ts
     await app.init();
   });
 

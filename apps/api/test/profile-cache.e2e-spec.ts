@@ -13,19 +13,19 @@ function asUser(ctx: TestContext, session: Session) {
   return {
     patchMe: (body: object) =>
       request(ctx.server)
-        .patch("/me")
+        .patch("/api/me")
         .set("X-Requested-With", "fetch")
         .set("Cookie", `access_token=${session.accessToken}`)
         .send(body),
     putVisit: (code: string, body: object = {}) =>
       request(ctx.server)
-        .put(`/me/visits/${code}`)
+        .put(`/api/me/visits/${code}`)
         .set("X-Requested-With", "fetch")
         .set("Cookie", `access_token=${session.accessToken}`)
         .send(body),
     deleteVisit: (code: string) =>
       request(ctx.server)
-        .delete(`/me/visits/${code}`)
+        .delete(`/api/me/visits/${code}`)
         .set("X-Requested-With", "fetch")
         .set("Cookie", `access_token=${session.accessToken}`),
   };
@@ -55,7 +55,7 @@ describe("public profile cache (e2e)", () => {
       });
 
       const first = await request(ctx.server)
-        .get("/users/cached_user")
+        .get("/api/users/cached_user")
         .expect(200);
       expect(first.body.counts.countries).toBe(1);
 
@@ -70,7 +70,7 @@ describe("public profile cache (e2e)", () => {
         data: { userId: user.id, countryCode: "JP" },
       });
       const second = await request(ctx.server)
-        .get("/users/cached_user")
+        .get("/api/users/cached_user")
         .expect(200);
       expect(second.body.counts.countries).toBe(1);
       expect(second.body.countryCodes).toEqual(["FR"]);
@@ -78,7 +78,7 @@ describe("public profile cache (e2e)", () => {
       // Dropping the key forces the next read back to the DB.
       await ctx.redis.del("profile:cached_user");
       const third = await request(ctx.server)
-        .get("/users/cached_user")
+        .get("/api/users/cached_user")
         .expect(200);
       expect(third.body.countryCodes).toEqual(["FR", "JP"]);
     });
@@ -94,7 +94,7 @@ describe("public profile cache (e2e)", () => {
       });
 
       const first = await request(ctx.server)
-        .get("/users/stats_cached/stats")
+        .get("/api/users/stats_cached/stats")
         .expect(200);
       expect(first.body.countryCount).toBe(1);
 
@@ -106,19 +106,19 @@ describe("public profile cache (e2e)", () => {
         data: { userId: user.id, countryCode: "AR" },
       });
       const second = await request(ctx.server)
-        .get("/users/stats_cached/stats")
+        .get("/api/users/stats_cached/stats")
         .expect(200);
       expect(second.body.countryCount).toBe(1); // stale = cache hit
 
       await ctx.redis.del("stats:stats_cached");
       const third = await request(ctx.server)
-        .get("/users/stats_cached/stats")
+        .get("/api/users/stats_cached/stats")
         .expect(200);
       expect(third.body.countryCount).toBe(2);
     });
 
     it("does not cache 404s", async () => {
-      await request(ctx.server).get("/users/ghost_user").expect(404);
+      await request(ctx.server).get("/api/users/ghost_user").expect(404);
       expect(await ctx.redis.exists("profile:ghost_user")).toBe(0);
 
       // The user appears afterwards and resolves immediately.
@@ -129,7 +129,7 @@ describe("public profile cache (e2e)", () => {
           username: "ghost_user",
         },
       });
-      await request(ctx.server).get("/users/ghost_user").expect(200);
+      await request(ctx.server).get("/api/users/ghost_user").expect(200);
     });
   });
 
@@ -140,19 +140,19 @@ describe("public profile cache (e2e)", () => {
       await me.patchMe({ username: "marker" }).expect(200);
 
       // Prime both caches.
-      const before = await request(ctx.server).get("/users/marker").expect(200);
+      const before = await request(ctx.server).get("/api/users/marker").expect(200);
       expect(before.body.countryCodes).toEqual([]);
       const statsBefore = await request(ctx.server)
-        .get("/users/marker/stats")
+        .get("/api/users/marker/stats")
         .expect(200);
       expect(statsBefore.body.countryCount).toBe(0);
 
       await me.putVisit("DE", { visitedYear: 2024 }).expect(200);
 
-      const after = await request(ctx.server).get("/users/marker").expect(200);
+      const after = await request(ctx.server).get("/api/users/marker").expect(200);
       expect(after.body.countryCodes).toEqual(["DE"]);
       const statsAfter = await request(ctx.server)
-        .get("/users/marker/stats")
+        .get("/api/users/marker/stats")
         .expect(200);
       expect(statsAfter.body.countryCount).toBe(1);
       expect(statsAfter.body.continents["Europe"].visited).toBe(1);
@@ -165,18 +165,18 @@ describe("public profile cache (e2e)", () => {
       await me.putVisit("JP").expect(200);
 
       const before = await request(ctx.server)
-        .get("/users/unmarker")
+        .get("/api/users/unmarker")
         .expect(200);
       expect(before.body.countryCodes).toEqual(["JP"]);
 
       await me.deleteVisit("JP").expect(204);
 
       const after = await request(ctx.server)
-        .get("/users/unmarker")
+        .get("/api/users/unmarker")
         .expect(200);
       expect(after.body.countryCodes).toEqual([]);
       const stats = await request(ctx.server)
-        .get("/users/unmarker/stats")
+        .get("/api/users/unmarker/stats")
         .expect(200);
       expect(stats.body.countryCount).toBe(0);
     });
@@ -189,8 +189,8 @@ describe("public profile cache (e2e)", () => {
       await me.patchMe({ username: "old_handle" }).expect(200);
 
       // Prime the cache for the old handle.
-      await request(ctx.server).get("/users/old_handle").expect(200);
-      await request(ctx.server).get("/users/old_handle/stats").expect(200);
+      await request(ctx.server).get("/api/users/old_handle").expect(200);
+      await request(ctx.server).get("/api/users/old_handle/stats").expect(200);
       expect(await ctx.redis.exists("profile:old_handle")).toBe(1);
       expect(await ctx.redis.exists("stats:old_handle")).toBe(1);
 
@@ -199,11 +199,11 @@ describe("public profile cache (e2e)", () => {
       // Old keys are gone — the stale handle 404s instead of serving cache.
       expect(await ctx.redis.exists("profile:old_handle")).toBe(0);
       expect(await ctx.redis.exists("stats:old_handle")).toBe(0);
-      await request(ctx.server).get("/users/old_handle").expect(404);
-      await request(ctx.server).get("/users/old_handle/stats").expect(404);
+      await request(ctx.server).get("/api/users/old_handle").expect(404);
+      await request(ctx.server).get("/api/users/old_handle/stats").expect(404);
 
       const renamed = await request(ctx.server)
-        .get("/users/new_handle")
+        .get("/api/users/new_handle")
         .expect(200);
       expect(renamed.body.username).toBe("new_handle");
     });
@@ -214,14 +214,14 @@ describe("public profile cache (e2e)", () => {
       await me.patchMe({ username: "displayer" }).expect(200);
 
       const before = await request(ctx.server)
-        .get("/users/displayer")
+        .get("/api/users/displayer")
         .expect(200);
       expect(before.body.displayName).not.toBe("Fresh Name");
 
       await me.patchMe({ displayName: "Fresh Name" }).expect(200);
 
       const after = await request(ctx.server)
-        .get("/users/displayer")
+        .get("/api/users/displayer")
         .expect(200);
       expect(after.body.displayName).toBe("Fresh Name");
     });
