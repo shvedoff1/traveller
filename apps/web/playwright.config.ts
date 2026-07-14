@@ -18,6 +18,11 @@ export default defineConfig({
   testDir: "./e2e",
   timeout: 60_000,
   fullyParallel: false,
+  // One worker: the specs share a single dev server, Postgres and Redis, and
+  // magic-link login is rate-limited per IP — running spec files in parallel
+  // oversubscribes all three and flakes the heavier flows. Serial is the
+  // intended execution model here.
+  workers: 1,
   use: {
     baseURL: "http://localhost:3000",
     trace: "retain-on-failure",

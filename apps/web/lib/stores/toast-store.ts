@@ -1,17 +1,21 @@
 import { create } from "zustand";
 
+export type ToastVariant = "error" | "success";
+
 export interface Toast {
   id: number;
   message: string;
+  variant: ToastVariant;
 }
 
 export interface ToastStoreState {
   toasts: Toast[];
   /**
-   * Show an error toast. Consecutive duplicates collapse into one (a burst
-   * of failed optimistic mutations shouldn't stack identical messages).
+   * Show a toast. Consecutive duplicates collapse into one (a burst of
+   * failed optimistic mutations shouldn't stack identical messages).
+   * Defaults to the error variant.
    */
-  pushToast: (message: string) => void;
+  pushToast: (message: string, variant?: ToastVariant) => void;
   dismissToast: (id: number) => void;
 }
 
@@ -22,7 +26,7 @@ export const MAX_TOASTS = 3;
 
 export const useToastStore = create<ToastStoreState>((set) => ({
   toasts: [],
-  pushToast: (message) =>
+  pushToast: (message, variant = "error") =>
     set((state) => {
       if (state.toasts.some((toast) => toast.message === message)) {
         return state;
@@ -30,7 +34,7 @@ export const useToastStore = create<ToastStoreState>((set) => ({
       return {
         toasts: [
           ...state.toasts.slice(-(MAX_TOASTS - 1)),
-          { id: nextToastId++, message },
+          { id: nextToastId++, message, variant },
         ],
       };
     }),
@@ -42,5 +46,10 @@ export const useToastStore = create<ToastStoreState>((set) => ({
 
 /** Convenience for non-hook call sites (mutation onError callbacks). */
 export function pushErrorToast(message: string): void {
-  useToastStore.getState().pushToast(message);
+  useToastStore.getState().pushToast(message, "error");
+}
+
+/** Convenience for non-hook call sites (mutation onSuccess callbacks). */
+export function pushSuccessToast(message: string): void {
+  useToastStore.getState().pushToast(message, "success");
 }

@@ -7,9 +7,9 @@ import { type Toast, useToastStore } from "../../lib/stores/toast-store";
 const AUTO_HIDE_MS = 5000;
 
 /**
- * Bottom-center stack of error toasts (failed mutations, network errors).
- * Each toast auto-hides and can be dismissed; screen readers get them via
- * role="alert".
+ * Bottom-center stack of toasts — errors (failed mutations, network errors)
+ * and success confirmations. Each toast auto-hides and can be dismissed;
+ * screen readers get them via role="alert".
  */
 export function Toaster() {
   const toasts = useToastStore((state) => state.toasts);
@@ -35,14 +35,16 @@ function ToastCard({ toast }: { toast: Toast }) {
     return () => clearTimeout(timer);
   }, [toast.id, dismissToast]);
 
+  const isSuccess = toast.variant === "success";
+
   return (
     <div
       role="alert"
-      data-testid="error-toast"
+      data-testid={isSuccess ? "success-toast" : "error-toast"}
       className="animate-rise pointer-events-auto flex items-center gap-3 rounded-full border border-edge bg-surface px-4 py-2 text-sm shadow-2xl backdrop-blur-xl"
     >
-      <span aria-hidden className="text-danger">
-        ⚠
+      <span aria-hidden className={isSuccess ? "text-accent" : "text-danger"}>
+        {isSuccess ? "✓" : "⚠"}
       </span>
       <span>{toast.message}</span>
       <button
