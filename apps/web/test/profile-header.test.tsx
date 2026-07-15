@@ -1,5 +1,11 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { type ReactElement } from "react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -7,10 +13,21 @@ import { ProfileHeader } from "../components/profile/ProfileHeader";
 import { api } from "../lib/api-client";
 
 vi.mock("../lib/api-client", () => ({
-  api: { getMe: vi.fn() },
+  api: { getMe: vi.fn(), updateMe: vi.fn() },
+}));
+
+const replace = vi.fn();
+const refresh = vi.fn();
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ replace, refresh }),
+}));
+
+vi.mock("../app/actions/revalidate-profile", () => ({
+  revalidateProfile: vi.fn().mockResolvedValue(undefined),
 }));
 
 const getMe = vi.mocked(api.getMe);
+const updateMe = vi.mocked(api.updateMe);
 
 function renderWithQuery(ui: ReactElement) {
   const client = new QueryClient({
@@ -84,5 +101,95 @@ describe("ProfileHeader", () => {
       expect(screen.getByTestId("edit-map-link")).toHaveAttribute("href", "/"),
     );
     expect(screen.queryByTestId("follow-button")).not.toBeInTheDocument();
+    // The owner also gets an inline edit affordance; visitors don't.
+    expect(screen.getByTestId("profile-edit-button")).toBeInTheDocument();
+  });
+
+  it("hides the inline edit affordance from non-owners", async () => {
+    getMe.mockResolvedValue(null);
+    renderWithQuery(
+      <ProfileHeader username="john" displayName="John Carter" avatarUrl={null} />,
+    );
+    // Give the owner query a chance to resolve before asserting absence.
+    await waitFor(() =>
+      expect(screen.getByTestId("follow-button")).toBeInTheDocument(),
+    );
+    expect(screen.queryByTestId("profile-edit-button")).not.toBeInTheDocument();
+  });
+
+  it("owner edits the name inline: saves and reflects it immediately", async () => {
+    getMe.mockResolvedValue({
+      id: "6d2f9c6e-2f9b-4f6c-9a4e-27a2f9adf001",
+      username: "john",
+      displayName: "John Carter",
+      email: "john@example.com",
+      avatarUrl: null,
+      isPublic: true,
+    });
+    updateMe.mockResolvedValue({
+      id: "6d2f9c6e-2f9b-4f6c-9a4e-27a2f9adf001",
+      username: "john",
+      displayName: "Johnny",
+      email: "john@example.com",
+      avatarUrl: null,
+      isPublic: true,
+    });
+    renderWithQuery(
+      <ProfileHeader username="john" displayName="John Carter" avatarUrl={null} />,
+    );
+
+    fireEvent.click(await screen.findByTestId("profile-edit-button"));
+    const input = screen.getByTestId("profile-edit-name-input");
+    expect(input).toHaveValue("John Carter");
+    fireEvent.change(input, { target: { value: "Johnny" } });
+    fireEvent.click(screen.getByTestId("profile-edit-save"));
+
+    await waitFor(() =>
+      expect(updateMe).toHaveBeenCalledExactlyOnceWith({
+        displayName: "Johnny",
+      }),
+    );
+    // Name updates in place; the editor closes; same handle → refresh, no nav.
+    await waitFor(() =>
+      expect(screen.getByTestId("profile-name")).toHaveTextContent("Johnny"),
+    );
+    expect(screen.queryByTestId("profile-edit-form")).not.toBeInTheDocument();
+    expect(refresh).toHaveBeenCalled();
+    expect(replace).not.toHaveBeenCalled();
+  });
+
+  it("owner changes the username: navigates to the new profile URL", async () => {
+    getMe.mockResolvedValue({
+      id: "6d2f9c6e-2f9b-4f6c-9a4e-27a2f9adf001",
+      username: "john",
+      displayName: "John Carter",
+      email: "john@example.com",
+      avatarUrl: null,
+      isPublic: true,
+    });
+    updateMe.mockResolvedValue({
+      id: "6d2f9c6e-2f9b-4f6c-9a4e-27a2f9adf001",
+      username: "johncarter",
+      displayName: "John Carter",
+      email: "john@example.com",
+      avatarUrl: null,
+      isPublic: true,
+    });
+    renderWithQuery(
+      <ProfileHeader username="john" displayName="John Carter" avatarUrl={null} />,
+    );
+
+    fireEvent.click(await screen.findByTestId("profile-edit-button"));
+    fireEvent.change(screen.getByTestId("profile-edit-username-input"), {
+      target: { value: "johncarter" },
+    });
+    fireEvent.click(screen.getByTestId("profile-edit-save"));
+
+    await waitFor(() =>
+      expect(updateMe).toHaveBeenCalledExactlyOnceWith({
+        username: "johncarter",
+      }),
+    );
+    await waitFor(() => expect(replace).toHaveBeenCalledWith("/johncarter"));
   });
 });
