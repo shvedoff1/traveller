@@ -21,6 +21,12 @@ vi.mock("../lib/api-client", async () => {
   return { ...actual, api: { updateMe: vi.fn() } };
 });
 
+// The success path fires an on-demand revalidation server action; stub it so
+// the test doesn't reach into Next's cache machinery.
+vi.mock("../app/actions/revalidate-profile", () => ({
+  revalidateProfile: vi.fn().mockResolvedValue(undefined),
+}));
+
 const updateMe = vi.mocked(api.updateMe);
 
 const ME: MeResponse = {

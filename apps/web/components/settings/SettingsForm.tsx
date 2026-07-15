@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { type MeResponse } from "@traveller/shared";
 import { type FormEvent, useState } from "react";
 
+import { revalidateProfile } from "../../app/actions/revalidate-profile";
 import { api } from "../../lib/api-client";
 import {
   type ProfileFields,
@@ -36,9 +37,12 @@ export function SettingsForm({ me }: { me: MeResponse }) {
 
   const save = useMutation({
     mutationFn: (body: NonNullable<typeof update>) => api.updateMe(body),
-    onSuccess: (updated) => {
+    onSuccess: async (updated) => {
       queryClient.setQueryData(["me"], updated);
       void queryClient.invalidateQueries({ queryKey: ["me"] });
+      // Bust the ISR-cached public profile so the new name shows on reload,
+      // covering both the old and (possibly changed) new username path.
+      await revalidateProfile([current.username, updated.username ?? ""]);
       pushSuccessToast("Profile updated.");
     },
   });
