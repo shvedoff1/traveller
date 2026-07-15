@@ -75,8 +75,23 @@ function buildInit(options: FetchOptions): RequestInit {
 }
 
 /**
- * Cookie-authenticated fetch. On a 401 it calls `/auth/refresh` once and,
- * if the refresh succeeds, retries the original request a single time.
+ * Backoff between refresh attempts. A failed refresh isn't necessarily a
+ * logout — during a redeploy the API container is recreated (and Caddy
+ * bounced), so `/auth/refresh` is briefly unreachable while the 30-day refresh
+ * cookie is still perfectly valid. We retry through that window and only end
+ * the session on a real 401/403 from the refresh endpoint.
+ */
+const REFRESH_RETRY_DELAYS_MS = [200, 600];
+
+const delay = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
+/**
+ * Cookie-authenticated fetch. On a 401 it calls `/auth/refresh` and, if the
+ * refresh succeeds, retries the original request once. A refresh that fails
+ * only transiently (network drop, or a 5xx from an API mid-restart) is retried
+ * with short backoff so a deploy blip doesn't bounce a valid session to login;
+ * a 401/403 from refresh is a genuine logout and stops immediately.
  */
 export async function apiFetch(
   path: string,
@@ -87,14 +102,31 @@ export async function apiFetch(
     return response;
   }
 
-  const refreshed = await safeFetch(
-    `${API_BASE}/auth/refresh`,
-    buildInit({ method: "POST" }),
-  );
-  if (!refreshed.ok) {
-    return response; // original 401 stands
+  for (let attempt = 0; ; attempt++) {
+    let refreshed: Response | null = null;
+    try {
+      refreshed = await safeFetch(
+        `${API_BASE}/auth/refresh`,
+        buildInit({ method: "POST" }),
+      );
+    } catch {
+      // Transport failure (API unreachable) — treat as transient, fall through.
+    }
+
+    if (refreshed?.ok) {
+      return safeFetch(`${API_BASE}${path}`, buildInit(options));
+    }
+    // A real 401/403 means the refresh token is dead — the session is over.
+    if (refreshed && (refreshed.status === 401 || refreshed.status === 403)) {
+      return response;
+    }
+    // Anything else (no response, or 5xx) is transient: back off and retry
+    // until the attempts are exhausted, then let the original 401 stand.
+    if (attempt >= REFRESH_RETRY_DELAYS_MS.length) {
+      return response;
+    }
+    await delay(REFRESH_RETRY_DELAYS_MS[attempt]!);
   }
-  return safeFetch(`${API_BASE}${path}`, buildInit(options));
 }
 
 async function requestJson<T>(

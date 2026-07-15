@@ -108,6 +108,58 @@ describe("apiFetch", () => {
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
+  it("retries a transient 5xx refresh, then succeeds (deploy blip)", async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({}, 401)) // original
+      .mockResolvedValueOnce(jsonResponse({}, 503)) // refresh: API restarting
+      .mockResolvedValueOnce(jsonResponse({ ok: true })) // refresh: recovered
+      .mockResolvedValueOnce(jsonResponse(ME)); // retry original
+
+    const response = await apiFetch("/auth/me");
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
+  it("treats a network-dropped refresh as transient, not a logout", async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({}, 401)) // original
+      .mockRejectedValueOnce(new TypeError("Failed to fetch")) // refresh drops
+      .mockResolvedValueOnce(jsonResponse({ ok: true })) // refresh: recovered
+      .mockResolvedValueOnce(jsonResponse(ME)); // retry original
+
+    const response = await apiFetch("/auth/me");
+
+    expect(response.status).toBe(200);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
+  it("gives up after backoff when refresh stays unavailable", async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({}, 401)) // original
+      .mockResolvedValueOnce(jsonResponse({}, 502)) // refresh attempt 1
+      .mockResolvedValueOnce(jsonResponse({}, 502)) // refresh attempt 2
+      .mockResolvedValueOnce(jsonResponse({}, 502)); // refresh attempt 3
+
+    const response = await apiFetch("/auth/me");
+
+    // Original 401 stands after exhausting the (2) backoff retries.
+    expect(response.status).toBe(401);
+    expect(fetchMock).toHaveBeenCalledTimes(4);
+  });
+
+  it("ends the session immediately on a real 401 from refresh", async () => {
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse({}, 401)) // original
+      .mockResolvedValueOnce(jsonResponse({}, 401)); // refresh: token dead
+
+    const response = await apiFetch("/auth/me");
+
+    // No backoff loop — a genuine logout is not retried.
+    expect(response.status).toBe(401);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   it("never tries to refresh the refresh call itself", async () => {
     fetchMock.mockResolvedValueOnce(jsonResponse({}, 401));
 
