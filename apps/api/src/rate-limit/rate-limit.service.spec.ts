@@ -1,4 +1,4 @@
-import { HttpException } from "@nestjs/common";
+import { HttpException, Logger } from "@nestjs/common";
 import type Redis from "ioredis";
 
 import { type RateLimitRule } from "./rate-limit.constants";
@@ -64,5 +64,30 @@ describe("RateLimitService", () => {
     }
     await expect(service.consume("b", RULE)).resolves.toBeUndefined();
     await expect(service.consume("a", RULE)).rejects.toThrow(RULE.message);
+  });
+
+  describe("refusal logging", () => {
+    let warn: jest.SpyInstance;
+    beforeEach(() => {
+      warn = jest.spyOn(Logger.prototype, "warn").mockImplementation();
+    });
+    afterEach(() => warn.mockRestore());
+
+    it("logs the first refusal of a window with the label, once", async () => {
+      for (let i = 0; i < RULE.max + 3; i += 1) {
+        await service.consume("k", RULE, "global ip=1.2.3.4").catch(() => {});
+      }
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(warn.mock.calls[0]?.[0]).toBe(
+        "rate limit exceeded: global ip=1.2.3.4 (max 3/60s)",
+      );
+    });
+
+    it("stays silent without a label", async () => {
+      for (let i = 0; i < RULE.max + 1; i += 1) {
+        await service.consume("k", RULE).catch(() => {});
+      }
+      expect(warn).not.toHaveBeenCalled();
+    });
   });
 });

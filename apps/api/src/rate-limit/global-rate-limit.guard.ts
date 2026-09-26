@@ -28,7 +28,11 @@ export class GlobalRateLimitGuard implements CanActivate {
     // `req.ip` honours Express "trust proxy" (set in main.ts for
     // production deployments behind a reverse proxy).
     const ip = request.ip ?? request.socket?.remoteAddress ?? "unknown";
-    await this.rateLimit.consume(`throttle:ip:${ip}`, this.limits.global);
+    await this.rateLimit.consume(
+      `throttle:ip:${ip}`,
+      this.limits.global,
+      `global ip=${ip} ${request.method} ${request.path}`,
+    );
     return true;
   }
 }

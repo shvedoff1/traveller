@@ -136,7 +136,7 @@ if only one is set). Set `MAIL_FROM` to a verified sender, e.g.
 `Traveller <login@yourdomain.tech>`.
 
 The `POST /auth/magic-link` endpoint is safe to expose publicly: it is
-throttled per-email (3/15min, 10/day) and per-IP (5/15min, 20/day), with a
+throttled per-email (3/15min, 10/day) and per-IP (20/15min, 100/day — a whole office behind one NAT must fit), with a
 service-wide 200/day ceiling that protects the provider quota by silently
 skipping sends once reached. A hidden honeypot field drops bot submissions.
 All responses are non-enumerating — the same `200 {ok:true}` whether a link
