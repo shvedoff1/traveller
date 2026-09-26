@@ -17,3 +17,6 @@ pnpm-debug.log*
 
 playwright-report/
 test-results/
+
+# Local Redis snapshots
+dump.rdb
