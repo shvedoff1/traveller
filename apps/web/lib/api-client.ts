@@ -2,6 +2,10 @@ import {
   type AuthProviders,
   type FollowUser,
   type FriendMapEntry,
+  type GroupDetail,
+  type GroupInvitePreview,
+  type GroupSummary,
+  type JoinGroupResponse,
   type MagicLinkResponse,
   type MeResponse,
   type PublicProfile,
@@ -12,6 +16,10 @@ import {
   authProvidersSchema,
   followUserListSchema,
   friendsMapResponseSchema,
+  groupDetailSchema,
+  groupInvitePreviewSchema,
+  groupListSchema,
+  joinGroupResponseSchema,
   magicLinkResponseSchema,
   meResponseSchema,
   publicProfileSchema,
@@ -222,5 +230,64 @@ export const api = {
     requestJson(
       userSearchResultListSchema,
       `/users/search?q=${encodeURIComponent(query)}`,
+    ),
+
+  getMyGroups: (): Promise<GroupSummary[]> =>
+    requestJson(groupListSchema, "/me/groups"),
+
+  createGroup: (name: string): Promise<GroupDetail> =>
+    requestJson(groupDetailSchema, "/groups", {
+      method: "POST",
+      body: { name },
+    }),
+
+  getGroup: (id: string): Promise<GroupDetail> =>
+    requestJson(groupDetailSchema, `/groups/${encodeURIComponent(id)}`),
+
+  renameGroup: (id: string, name: string): Promise<GroupDetail> =>
+    requestJson(groupDetailSchema, `/groups/${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      body: { name },
+    }),
+
+  deleteGroup: async (id: string): Promise<void> => {
+    const response = await apiFetch(`/groups/${encodeURIComponent(id)}`, {
+      method: "DELETE",
+    });
+    if (!response.ok) throw new ApiError(response.status);
+  },
+
+  rotateGroupInvite: (id: string): Promise<GroupDetail> =>
+    requestJson(
+      groupDetailSchema,
+      `/groups/${encodeURIComponent(id)}/invite-code`,
+      { method: "POST" },
+    ),
+
+  addGroupMember: (id: string, username: string): Promise<GroupDetail> =>
+    requestJson(groupDetailSchema, `/groups/${encodeURIComponent(id)}/members`, {
+      method: "POST",
+      body: { username },
+    }),
+
+  removeGroupMember: async (id: string, username: string): Promise<void> => {
+    const response = await apiFetch(
+      `/groups/${encodeURIComponent(id)}/members/${encodeURIComponent(username)}`,
+      { method: "DELETE" },
+    );
+    if (!response.ok) throw new ApiError(response.status);
+  },
+
+  getGroupInvite: (code: string): Promise<GroupInvitePreview> =>
+    requestJson(
+      groupInvitePreviewSchema,
+      `/group-invites/${encodeURIComponent(code)}`,
+    ),
+
+  joinGroup: (code: string): Promise<JoinGroupResponse> =>
+    requestJson(
+      joinGroupResponseSchema,
+      `/group-invites/${encodeURIComponent(code)}`,
+      { method: "POST" },
     ),
 };

@@ -134,6 +134,25 @@ describe("MapCanvas", () => {
     expect(onCountryClick).toHaveBeenCalledTimes(1);
   });
 
+  it("skips external highlight until the style has loaded", () => {
+    const { rerender } = render(
+      <MapCanvas visited={[]} selected={null} highlighted={null} />,
+    );
+    const map = lastMap();
+    // Style still booting: MapLibre throws on feature-state, so we must not
+    // touch it (a fast tap on a panel row used to crash the page).
+    const getLayer = vi.spyOn(map, "getLayer").mockReturnValue(
+      undefined as unknown as { id: string },
+    );
+    vi.spyOn(map, "setFeatureState").mockImplementation(() => {
+      throw new Error("Style is not done loading.");
+    });
+    expect(() =>
+      rerender(<MapCanvas visited={[]} selected={null} highlighted="FR" />),
+    ).not.toThrow();
+    getLayer.mockRestore();
+  });
+
   it("mirrors external highlight onto the hover feature-state", () => {
     const { rerender } = render(
       <MapCanvas visited={[]} selected={null} highlighted={null} />,

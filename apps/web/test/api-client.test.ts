@@ -236,3 +236,110 @@ describe("network failures", () => {
     expect((error as ApiError).isNetworkError).toBe(true);
   });
 });
+
+describe("group helpers", () => {
+  const GROUP = {
+    id: "00000000-0000-4000-8000-0000000000aa",
+    name: "Crew",
+    createdAt: "2026-09-26T10:00:00.000Z",
+    isOwner: true,
+    inviteCode: "abcdefghijkl",
+    members: [],
+    stats: {
+      countryCount: 0,
+      worldPercent: 0,
+      averageCount: 0,
+      continents: {},
+      countryCodes: [],
+      sharedCodes: [],
+      popular: [],
+    },
+  };
+
+  function lastCall() {
+    const [url, init] = fetchMock.mock.calls.at(-1)!;
+    return {
+      url,
+      method: init?.method,
+      csrf: (init?.headers as Record<string, string>)["X-Requested-With"],
+      body: init?.body ? JSON.parse(String(init.body)) : undefined,
+    };
+  }
+
+  it("creates, renames and reads groups with the right verbs", async () => {
+    fetchMock.mockResolvedValue(jsonResponse(GROUP));
+    await expect(api.createGroup("Crew")).resolves.toMatchObject({
+      name: "Crew",
+    });
+    expect(lastCall()).toEqual({
+      url: "/api/groups",
+      method: "POST",
+      csrf: "fetch",
+      body: { name: "Crew" },
+    });
+
+    fetchMock.mockResolvedValue(jsonResponse(GROUP));
+    await api.renameGroup(GROUP.id, "New");
+    expect(lastCall()).toMatchObject({
+      url: `/api/groups/${GROUP.id}`,
+      method: "PATCH",
+      body: { name: "New" },
+    });
+
+    fetchMock.mockResolvedValue(jsonResponse(GROUP));
+    await api.getGroup(GROUP.id);
+    expect(lastCall()).toMatchObject({
+      url: `/api/groups/${GROUP.id}`,
+      method: "GET",
+    });
+
+    fetchMock.mockResolvedValue(jsonResponse(GROUP));
+    await api.addGroupMember(GROUP.id, "bob");
+    expect(lastCall()).toMatchObject({
+      url: `/api/groups/${GROUP.id}/members`,
+      method: "POST",
+      body: { username: "bob" },
+    });
+  });
+
+  it("DELETEs members and groups, surfacing failures as ApiError", async () => {
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
+    await api.removeGroupMember(GROUP.id, "bob");
+    expect(lastCall()).toMatchObject({
+      url: `/api/groups/${GROUP.id}/members/bob`,
+      method: "DELETE",
+      csrf: "fetch",
+    });
+
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 403 }));
+    await expect(api.deleteGroup(GROUP.id)).rejects.toMatchObject({
+      status: 403,
+    });
+  });
+
+  it("previews and joins invites", async () => {
+    fetchMock.mockResolvedValueOnce(
+      jsonResponse({
+        id: GROUP.id,
+        name: "Crew",
+        memberCount: 2,
+        ownerDisplayName: "Ann",
+        isMember: false,
+      }),
+    );
+    await api.getGroupInvite("abcdefghijkl");
+    expect(lastCall().url).toBe("/api/group-invites/abcdefghijkl");
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({ id: GROUP.id }));
+    await expect(api.joinGroup("abcdefghijkl")).resolves.toEqual({
+      id: GROUP.id,
+    });
+    expect(lastCall()).toMatchObject({
+      url: "/api/group-invites/abcdefghijkl",
+      method: "POST",
+    });
+
+    fetchMock.mockResolvedValueOnce(jsonResponse({}, 404));
+    await expect(api.getGroupInvite("nope")).rejects.toBeInstanceOf(ApiError);
+  });
+});

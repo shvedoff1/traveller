@@ -293,7 +293,9 @@ export function MapCanvas({
   const previousHighlightedRef = useRef<string | null>(null);
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    // Feature-state needs a loaded style: a row touched while the map is
+    // still booting (fast taps on mobile) would otherwise throw.
+    if (!map || !map.getLayer(LAYER_VISITED)) return;
     const previous = previousHighlightedRef.current;
     if (previous !== null && previous !== highlighted) {
       map.removeFeatureState(

@@ -241,7 +241,7 @@ export function CountryPanel() {
                     aria-expanded={isOpen}
                     data-testid={`region-heading-${slug}`}
                     onClick={() => toggleRegion(region.continent)}
-                    className="sticky top-0 z-10 flex w-full flex-col gap-1 rounded-lg bg-background/80 px-2 py-1.5 text-left backdrop-blur transition-colors duration-200 ease-out hover:text-foreground max-md:min-h-11"
+                    className="sticky top-0 z-10 flex w-full flex-col gap-1 rounded-lg bg-background px-2 py-1.5 text-left transition-colors duration-200 ease-out hover:text-foreground max-md:min-h-11"
                   >
                     <span className="flex w-full items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted">
                       <span>{region.continent}</span>
