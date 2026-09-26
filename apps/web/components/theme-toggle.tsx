@@ -6,6 +6,7 @@ import { useThemeStore } from "../lib/stores/theme-store";
  * Sun/moon theme switch. The visible icon is driven purely by CSS
  * (`data-theme` on <html> via the `light:` variant), so the server-rendered
  * markup never mismatches whatever theme the pre-paint script applied.
+ * In auto mode a click only overrides until the next day/night switch.
  */
 export function ThemeToggle() {
   const toggleTheme = useThemeStore((state) => state.toggleTheme);
@@ -15,6 +16,7 @@ export function ThemeToggle() {
       type="button"
       aria-label="Toggle color theme"
       data-testid="theme-toggle"
+      title="Toggle color theme"
       onClick={toggleTheme}
       className="pointer-events-auto flex size-9 items-center justify-center rounded-full bg-background/70 text-muted backdrop-blur transition-colors duration-200 ease-out hover:text-foreground max-md:size-11"
     >

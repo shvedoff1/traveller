@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 
 import { SettingsForm } from "../../components/settings/SettingsForm";
+import { ThemePreferencePicker } from "../../components/settings/ThemePreferencePicker";
 import { Skeleton } from "../../components/ui/Skeleton";
 import { api } from "../../lib/api-client";
 
@@ -49,6 +50,10 @@ export default function SettingsPage() {
             </Link>
           </div>
         )}
+
+        <div className="mt-8 border-t border-edge pt-6">
+          <ThemePreferencePicker />
+        </div>
       </div>
     </main>
   );

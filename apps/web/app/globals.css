@@ -3,7 +3,8 @@
 /*
  * Theme tokens. Dark is the default; the light palette activates via
  * `data-theme="light"` on <html>, set before paint by the inline script
- * in layout.tsx (localStorage, falling back to prefers-color-scheme).
+ * in layout.tsx (explicit choice in localStorage, otherwise the local time
+ * of day — see lib/theme.ts).
  */
 :root {
   --theme-background: #0b0e14;
@@ -56,6 +57,10 @@
 body {
   background-color: var(--color-background);
   color: var(--color-foreground);
+  /* Auto day/night switches fade in instead of snapping. */
+  transition:
+    background-color 0.6s ease,
+    color 0.6s ease;
 }
 
 /* A11y: one consistent, visible focus ring everywhere. */
