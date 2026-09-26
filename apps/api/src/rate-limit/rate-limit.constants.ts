@@ -53,8 +53,11 @@ export const DEFAULT_RATE_LIMITS: RateLimits = {
     windowSeconds: FIFTEEN_MIN_SECONDS,
     message: MAGIC_LINK_LIMIT_MESSAGE,
   },
+  // Per-IP caps are loose on purpose: one office / café / mobile carrier
+  // NAT is one IP, and a group signing up together must fit. The per-email
+  // and global caps are what actually bound abuse.
   magicLinkIp: {
-    max: 5,
+    max: 20,
     windowSeconds: FIFTEEN_MIN_SECONDS,
     message: MAGIC_LINK_LIMIT_MESSAGE,
   },
@@ -64,7 +67,7 @@ export const DEFAULT_RATE_LIMITS: RateLimits = {
     message: MAGIC_LINK_LIMIT_MESSAGE,
   },
   magicLinkIpDaily: {
-    max: 20,
+    max: 100,
     windowSeconds: DAY_SECONDS,
     message: MAGIC_LINK_LIMIT_MESSAGE,
   },

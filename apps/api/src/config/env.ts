@@ -42,9 +42,9 @@ const envSchema = z.object({
   MAIL_FROM: z.string().optional(),
   COOKIE_DOMAIN: z.string().optional(),
   /** Anti-abuse caps on POST /auth/magic-link (per 15 min / 24 h windows). */
-  MAGIC_LINK_IP_MAX: z.coerce.number().int().min(1).default(5),
+  MAGIC_LINK_IP_MAX: z.coerce.number().int().min(1).default(20),
   MAGIC_LINK_EMAIL_DAILY_MAX: z.coerce.number().int().min(1).default(10),
-  MAGIC_LINK_IP_DAILY_MAX: z.coerce.number().int().min(1).default(20),
+  MAGIC_LINK_IP_DAILY_MAX: z.coerce.number().int().min(1).default(100),
   MAGIC_LINK_GLOBAL_DAILY_MAX: z.coerce.number().int().min(1).default(200),
   /** Set to true when the API runs behind a reverse proxy (X-Forwarded-For). */
   TRUST_PROXY: z

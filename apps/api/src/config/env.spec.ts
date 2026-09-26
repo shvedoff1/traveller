@@ -94,9 +94,9 @@ describe("parseEnv", () => {
 
   it("applies defaults for the magic-link anti-abuse caps", () => {
     const env = parseEnv(REQUIRED);
-    expect(env.MAGIC_LINK_IP_MAX).toBe(5);
+    expect(env.MAGIC_LINK_IP_MAX).toBe(20);
     expect(env.MAGIC_LINK_EMAIL_DAILY_MAX).toBe(10);
-    expect(env.MAGIC_LINK_IP_DAILY_MAX).toBe(20);
+    expect(env.MAGIC_LINK_IP_DAILY_MAX).toBe(100);
     expect(env.MAGIC_LINK_GLOBAL_DAILY_MAX).toBe(200);
   });
 
