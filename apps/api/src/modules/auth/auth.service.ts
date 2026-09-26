@@ -1,10 +1,11 @@
-import { randomBytes } from "node:crypto";
+import { createHash, randomBytes } from "node:crypto";
 
 import {
   GoneException,
   Inject,
   Injectable,
   Logger,
+  ServiceUnavailableException,
   UnauthorizedException,
 } from "@nestjs/common";
 import { type User } from "@prisma/client";
@@ -63,21 +64,28 @@ export class AuthService {
 
     // Short-window + daily caps, per email and per IP. Each throws 429 on
     // exceed (generic message); the controller never distinguishes them.
+    // Refusals are logged with the IP and a fingerprint of the address —
+    // never the address itself.
+    const who = `ip=${ip} email=${emailFingerprint(email)}`;
     await this.rateLimit.consume(
       `throttle:magic-link:${email}`,
       this.limits.magicLink,
+      `magic-link per-email ${who}`,
     );
     await this.rateLimit.consume(
       `throttle:magic-link:ip:${ip}`,
       this.limits.magicLinkIp,
+      `magic-link per-ip ${who}`,
     );
     await this.rateLimit.consume(
       `throttle:magic-link:daily:${email}`,
       this.limits.magicLinkEmailDaily,
+      `magic-link per-email daily ${who}`,
     );
     await this.rateLimit.consume(
       `throttle:magic-link:ip:daily:${ip}`,
       this.limits.magicLinkIpDaily,
+      `magic-link per-ip daily ${who}`,
     );
 
     // Global daily cap protects the SMTP provider quota: once reached we
@@ -103,7 +111,17 @@ export class AuthService {
     });
 
     const link = `${loadEnv().API_URL}/auth/magic-link/verify?token=${raw}`;
-    await this.mail.sendMagicLink(email, link);
+    try {
+      await this.mail.sendMagicLink(email, link);
+    } catch (error) {
+      // SMTP/provider failure (auth, quota, network). Log with context — the
+      // raw provider error, never the address — and answer 503.
+      this.logger.error(
+        `magic-link send failed ${who}: ${error instanceof Error ? error.message : String(error)}`,
+        error instanceof Error ? error.stack : undefined,
+      );
+      throw new ServiceUnavailableException("Couldn't send the sign-in email");
+    }
   }
 
   /**
@@ -190,6 +208,14 @@ export function toMeResponse(user: User): MeResponse {
     avatarUrl: user.avatarUrl,
     isPublic: user.isPublic,
   };
+}
+
+/**
+ * Stable, non-reversible short id for an email address in logs: lets ops
+ * correlate refusals for one address without logging the address itself.
+ */
+export function emailFingerprint(email: string): string {
+  return createHash("sha256").update(email).digest("hex").slice(0, 12);
 }
 
 function displayNameFromEmail(email: string): string {

@@ -5,6 +5,7 @@ import { emailSchema } from "@traveller/shared";
 import { type FormEvent, useState } from "react";
 
 import { api } from "../../lib/api-client";
+import { describeMagicLinkError } from "../../lib/errors";
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? "/api";
 
@@ -106,7 +107,7 @@ export default function LoginPage() {
               </button>
               {sendLink.isError ? (
                 <p role="alert" className="text-sm text-danger">
-                  Couldn&apos;t send the link — try again in a few minutes.
+                  {describeMagicLinkError(sendLink.error)}
                 </p>
               ) : null}
             </form>

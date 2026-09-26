@@ -100,3 +100,13 @@ volume persist across runs.
   GHCR; migrations are forward-only).
 - Changing `NEXT_PUBLIC_SITE_URL` (the site domain) requires a **rebuild** — it's
   inlined into the web image at build time.
+- **"Too many sign-in attempts" / "Couldn't send the link"**: the API logs
+  every magic-link refusal as `rate limit exceeded: magic-link <limit> ip=…
+  email=<fingerprint>` (the address is never logged, only a short hash) and a
+  failed send as `magic-link send failed … <provider error>`:
+  `docker compose logs api | grep magic-link`. To see which IPs are counted:
+  `docker compose exec redis redis-cli --scan --pattern 'throttle:*ip*'`. If
+  those keys hold a Docker gateway address (`172.x.0.1`) instead of real
+  client IPs, Caddy isn't seeing client addresses (typically IPv6 traffic
+  going through docker-proxy) and all those users share one per-IP budget —
+  fix it on the Caddy side, not by raising the limits.
