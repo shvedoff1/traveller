@@ -45,6 +45,13 @@ test("pill expands to the bottom sheet; touch targets are ≥44px", async ({
     })
     .toEqual({ x: 0, width: 375, bottom: 667 });
 
+  // Form fields are ≥16px on phones, or iOS Safari zooms the page in on
+  // focus and leaves it cropped.
+  const searchFont = await page
+    .getByTestId("country-search")
+    .evaluate((input) => parseFloat(getComputedStyle(input).fontSize));
+  expect(searchFont).toBeGreaterThanOrEqual(16);
+
   // Search works inside the sheet; rows are comfortably tappable.
   await page.getByTestId("country-search").fill("Japan");
   const row = page.getByTestId("country-row-JP");
