@@ -2,10 +2,17 @@ import { create } from "zustand";
 
 export type ToastVariant = "error" | "success";
 
+/** Optional inline button on a toast (e.g. "Undo"); dismisses on click. */
+export interface ToastAction {
+  label: string;
+  onClick: () => void;
+}
+
 export interface Toast {
   id: number;
   message: string;
   variant: ToastVariant;
+  action?: ToastAction;
 }
 
 export interface ToastStoreState {
@@ -15,7 +22,11 @@ export interface ToastStoreState {
    * failed optimistic mutations shouldn't stack identical messages).
    * Defaults to the error variant.
    */
-  pushToast: (message: string, variant?: ToastVariant) => void;
+  pushToast: (
+    message: string,
+    variant?: ToastVariant,
+    action?: ToastAction,
+  ) => void;
   dismissToast: (id: number) => void;
 }
 
@@ -26,7 +37,7 @@ export const MAX_TOASTS = 3;
 
 export const useToastStore = create<ToastStoreState>((set) => ({
   toasts: [],
-  pushToast: (message, variant = "error") =>
+  pushToast: (message, variant = "error", action) =>
     set((state) => {
       if (state.toasts.some((toast) => toast.message === message)) {
         return state;
@@ -34,7 +45,7 @@ export const useToastStore = create<ToastStoreState>((set) => ({
       return {
         toasts: [
           ...state.toasts.slice(-(MAX_TOASTS - 1)),
-          { id: nextToastId++, message, variant },
+          { id: nextToastId++, message, variant, ...(action ? { action } : {}) },
         ],
       };
     }),
@@ -50,6 +61,6 @@ export function pushErrorToast(message: string): void {
 }
 
 /** Convenience for non-hook call sites (mutation onSuccess callbacks). */
-export function pushSuccessToast(message: string): void {
-  useToastStore.getState().pushToast(message, "success");
+export function pushSuccessToast(message: string, action?: ToastAction): void {
+  useToastStore.getState().pushToast(message, "success", action);
 }

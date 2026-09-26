@@ -34,7 +34,7 @@ test("public profile: logged-out render, share, casing redirect, OG image", asyn
   await page.goto("/");
   await expect(page.getByTestId("user-chip")).toBeVisible();
   await page.getByTestId("country-search").fill("France");
-  await page.getByTestId("country-row-FR").click();
+  await page.getByTestId("country-toggle-FR").click();
   await expect(page.getByTestId("stats-count")).toHaveText("1");
 
   // The visit PUT invalidates the profile cache: the public API reflects

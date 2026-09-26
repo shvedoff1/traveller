@@ -51,3 +51,19 @@ export function groupByContinent(
     return bucket ? [{ continent, countries: bucket }] : [];
   });
 }
+
+/** Panel list filter: everything, only visited, or only not-yet-visited. */
+export type StatusFilter = "all" | "visited" | "unvisited";
+
+/** Keep the countries matching a visited-status filter (order preserved). */
+export function filterByStatus(
+  countries: readonly Country[],
+  visited: ReadonlySet<string>,
+  status: StatusFilter,
+): Country[] {
+  if (status === "all") return [...countries];
+  const wantVisited = status === "visited";
+  return countries.filter(
+    (country) => visited.has(country.code) === wantVisited,
+  );
+}

@@ -2,6 +2,7 @@ import { COUNTRIES } from "@traveller/shared";
 import { describe, expect, it } from "vitest";
 
 import {
+  filterByStatus,
   filterCountries,
   groupByContinent,
   normalize,
@@ -93,5 +94,25 @@ describe("groupByContinent", () => {
 
   it("returns nothing for an empty list", () => {
     expect(groupByContinent([])).toEqual([]);
+  });
+});
+
+describe("filterByStatus", () => {
+  const visited = new Set(["FR", "JP"]);
+
+  it("keeps everything for 'all'", () => {
+    expect(filterByStatus(COUNTRIES, visited, "all")).toHaveLength(
+      COUNTRIES.length,
+    );
+  });
+
+  it("splits visited from not-yet-visited, preserving order", () => {
+    const mine = filterByStatus(COUNTRIES, visited, "visited");
+    expect(mine.map((country) => country.code)).toEqual(
+      COUNTRIES.filter((c) => visited.has(c.code)).map((c) => c.code),
+    );
+    const rest = filterByStatus(COUNTRIES, visited, "unvisited");
+    expect(rest).toHaveLength(COUNTRIES.length - 2);
+    expect(rest.some((country) => visited.has(country.code))).toBe(false);
   });
 });
