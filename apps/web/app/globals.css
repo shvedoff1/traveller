@@ -90,3 +90,17 @@ body {
     animation: none;
   }
 }
+
+/*
+ * iOS Safari zooms the whole page in when a form field with text under 16px
+ * gets focus — and doesn't zoom back out, leaving the layout cropped on both
+ * sides. Phones and tablets get 16px fields (unlayered, so it beats the
+ * `text-sm` utilities); desktop keeps the compact size.
+ */
+@media (max-width: 767px), (pointer: coarse) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
