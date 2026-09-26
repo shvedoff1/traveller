@@ -88,6 +88,12 @@ function lastMap(): MockMap {
   return map;
 }
 
+/** Flip the map into edit mode (click toggles visited). */
+function enterEditMode() {
+  fireEvent.click(screen.getByTestId("map-mode-edit"));
+  expect(useMapStore.getState().mode).toBe("edit");
+}
+
 function clickCountry(map: MockMap, iso: string) {
   act(() => {
     map.fire(
@@ -103,6 +109,7 @@ describe("HomePage", () => {
     vi.clearAllMocks();
     MockMap.instances = [];
     useMapStore.setState(useMapStore.getInitialState(), true);
+    localStorage.clear();
   });
 
   afterEach(() => {
@@ -121,21 +128,21 @@ describe("HomePage", () => {
     await waitForAuthSettled();
   });
 
-  it("prompts logged-out visitors to log in instead of mutating", async () => {
+  it("shows logged-out visitors the country card with a login CTA", async () => {
     mockServer(false);
     renderHome();
     await waitForAuthSettled();
 
+    // No mode switch without an account — the map is look-only.
+    expect(screen.queryByTestId("map-mode-toggle")).not.toBeInTheDocument();
     clickCountry(lastMap(), "FR");
-    expect(await screen.findByTestId("login-prompt")).toBeInTheDocument();
+    const sheet = await screen.findByTestId("country-detail-sheet");
+    expect(sheet).toHaveTextContent("France");
+    expect(sheet).toHaveTextContent("Log in to mark it as visited");
     expect(mocked.upsertVisit).not.toHaveBeenCalled();
-    // Selection still works: the detail sheet opens with a login CTA.
-    expect(screen.getByTestId("country-detail-sheet")).toHaveTextContent(
-      "France",
-    );
   });
 
-  it("toggles a country optimistically when logged in", async () => {
+  it("view mode (default): a map click only shows the country", async () => {
     mockServer(true);
     renderHome();
     await waitForAuthSettled();
@@ -144,6 +151,69 @@ describe("HomePage", () => {
         "success",
       ),
     );
+
+    expect(await screen.findByTestId("map-mode-toggle")).toHaveAttribute(
+      "data-mode",
+      "view",
+    );
+    expect(screen.queryByTestId("edit-mode-frame")).not.toBeInTheDocument();
+    clickCountry(lastMap(), "FR");
+    expect(await screen.findByTestId("country-detail-sheet")).toHaveTextContent(
+      "France",
+    );
+    expect(useMapStore.getState().selected).toBe("FR");
+    expect(mocked.upsertVisit).not.toHaveBeenCalled();
+    expect(mocked.deleteVisit).not.toHaveBeenCalled();
+
+    // Marking is an explicit button in the card.
+    fireEvent.click(screen.getByTestId("visit-save"));
+    await waitFor(() =>
+      expect(mocked.upsertVisit).toHaveBeenCalledExactlyOnceWith("FR", {}),
+    );
+  });
+
+  it("switches modes with the toggle and the E key, and remembers it", async () => {
+    mockServer(true);
+    renderHome();
+    await waitForAuthSettled();
+    await screen.findByTestId("map-mode-toggle");
+
+    enterEditMode();
+    expect(screen.getByTestId("edit-mode-frame")).toBeInTheDocument();
+    expect(localStorage.getItem("traveller:map-mode")).toBe("edit");
+
+    fireEvent.keyDown(window, { key: "e" });
+    expect(useMapStore.getState().mode).toBe("view");
+    expect(localStorage.getItem("traveller:map-mode")).toBe("view");
+
+    // Typing an "e" in the search box is not a mode switch.
+    fireEvent.keyDown(screen.getByTestId("country-search"), { key: "e" });
+    expect(useMapStore.getState().mode).toBe("view");
+  });
+
+  it("restores a saved edit mode on load", async () => {
+    localStorage.setItem("traveller:map-mode", "edit");
+    mockServer(true);
+    renderHome();
+    await waitForAuthSettled();
+    await waitFor(() =>
+      expect(screen.getByTestId("map-mode-toggle")).toHaveAttribute(
+        "data-mode",
+        "edit",
+      ),
+    );
+  });
+
+  it("edit mode: a map click toggles a country optimistically", async () => {
+    mockServer(true);
+    renderHome();
+    await waitForAuthSettled();
+    await waitFor(() =>
+      expect(queryClient.getQueryState(["visits", "me"])?.status).toBe(
+        "success",
+      ),
+    );
+    enterEditMode();
 
     const map = lastMap();
     clickCountry(map, "FR");
@@ -187,6 +257,7 @@ describe("HomePage", () => {
         "success",
       ),
     );
+    enterEditMode();
 
     const map = lastMap();
     clickCountry(map, "FR");
@@ -320,6 +391,7 @@ describe("HomePage", () => {
     mockServer(true);
     renderHome();
     await waitForAuthSettled();
+    enterEditMode();
 
     clickCountry(lastMap(), "XK");
     expect(useMapStore.getState().selected).toBeNull();
