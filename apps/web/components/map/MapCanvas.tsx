@@ -6,6 +6,7 @@ import maplibregl, { type MapLayerMouseEvent } from "maplibre-gl";
 import { useEffect, useRef, useState } from "react";
 
 import { buildCompareLayerFilters } from "../../lib/map/compare";
+import { buildDaylightData, DAYLIGHT_REFRESH_MS } from "../../lib/map/daylight";
 import {
   nextProjection,
   persistProjection,
@@ -17,6 +18,7 @@ import {
   buildMapStyle,
   buildSelectedFilter,
   COUNTRIES_SOURCE,
+  DAYLIGHT_SOURCE,
   LAYER_FILL,
   LAYER_FRIEND,
   LAYER_OVERLAP,
@@ -76,6 +78,7 @@ interface TooltipState {
  * - hover highlights a country (feature-state) and shows a pointer cursor
  * - click resolves the country and reports its ISO code upward
  * - after 5 s without interaction (while zoomed out) the globe slowly spins
+ * - the night side is shaded from the real Sun position, refreshed each minute
  */
 export function MapCanvas({
   visited,
@@ -139,8 +142,15 @@ export function MapCanvas({
       if (projectionRef.current !== "globe") {
         map.setProjection({ type: projectionRef.current });
       }
+      applyDaylight(map);
     };
     map.on("load", applyFilters);
+
+    // Keep the night side where the Sun actually is.
+    const daylightTimer = setInterval(
+      () => applyDaylight(map),
+      DAYLIGHT_REFRESH_MS,
+    );
 
     // Restore the per-tab projection choice (globe by default) once the
     // toggle capability is enabled. Set state now (so the control reflects
@@ -248,6 +258,7 @@ export function MapCanvas({
 
     return () => {
       cancelAnimationFrame(frameHandle);
+      clearInterval(daylightTimer);
       mapRef.current = null;
       map.remove();
     };
@@ -268,6 +279,8 @@ export function MapCanvas({
       applyCompareFilters(map, visitedRef.current, friendVisitedRef.current);
       map.setFilter(LAYER_SELECTED, buildSelectedFilter(selectedRef.current));
     }
+    // The new style carries an empty night layer — refill it.
+    applyDaylight(map);
     // setStyle resets projection to the style's default (globe); restore
     // the active choice.
     if (projectionRef.current !== "globe") {
@@ -361,4 +374,12 @@ function applyCompareFilters(
   map.setFilter(LAYER_VISITED, filters.visited);
   map.setFilter(LAYER_FRIEND, filters.friend);
   map.setFilter(LAYER_OVERLAP, filters.overlap);
+}
+
+/** Shade the night side for the current moment (no-op before load). */
+function applyDaylight(map: maplibregl.Map): void {
+  const source = map.getSource(DAYLIGHT_SOURCE) as
+    | maplibregl.GeoJSONSource
+    | undefined;
+  source?.setData(buildDaylightData(new Date()));
 }

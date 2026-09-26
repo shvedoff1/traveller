@@ -2,10 +2,12 @@ import { act, cleanup, render, screen } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { MapCanvas } from "../components/map/MapCanvas";
+import { buildDaylightData } from "../lib/map/daylight";
 import {
   buildMapStyle,
   buildSelectedFilter,
   buildVisitedFilter,
+  DAYLIGHT_SOURCE,
   LAYER_FILL,
   LAYER_FRIEND,
   LAYER_OVERLAP,
@@ -34,6 +36,34 @@ describe("MapCanvas", () => {
     cleanup();
     localStorage.clear();
     useThemeStore.setState({ theme: "dark", preference: "auto" });
+  });
+
+  it("shades the night side on load, every minute and after a theme swap", () => {
+    vi.useFakeTimers();
+    try {
+      vi.setSystemTime(new Date(Date.UTC(2026, 8, 26, 12, 0)));
+      render(<MapCanvas visited={[]} selected={null} />);
+      const map = lastMap();
+      const calls = () => map.sourceData.get(DAYLIGHT_SOURCE) ?? [];
+      expect(calls()).toHaveLength(1);
+      expect(calls()[0]).toEqual(
+        buildDaylightData(new Date(Date.UTC(2026, 8, 26, 12, 0))),
+      );
+
+      act(() => {
+        vi.advanceTimersByTime(60_000);
+      });
+      expect(calls()).toHaveLength(2);
+      // A minute later the Sun (and the night) moved west.
+      expect(calls()[1]).toEqual(
+        buildDaylightData(new Date(Date.UTC(2026, 8, 26, 12, 1))),
+      );
+
+      act(() => useThemeStore.getState().setPreference("light"));
+      expect(calls()).toHaveLength(3);
+    } finally {
+      vi.useRealTimers();
+    }
   });
 
   it("mounts a single map on its container and removes it on unmount", () => {
