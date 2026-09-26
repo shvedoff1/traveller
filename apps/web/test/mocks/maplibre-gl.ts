@@ -71,6 +71,17 @@ export class MockMap {
     return this.canvas;
   }
 
+  /** Every setData call per source id, oldest first. */
+  readonly sourceData = new Map<string, unknown[]>();
+
+  getSource(id: string) {
+    return {
+      setData: (data: unknown) => {
+        this.sourceData.set(id, [...(this.sourceData.get(id) ?? []), data]);
+      },
+    };
+  }
+
   getLayer(id: string) {
     return { id };
   }

@@ -9,7 +9,9 @@ import {
   IDLE_ROTATION_DEG_PER_SEC,
   IDLE_ROTATION_DELAY_MS,
   IDLE_ROTATION_MAX_ZOOM,
+  DAYLIGHT_SOURCE,
   LAYER_BORDER,
+  LAYER_NIGHT,
   LAYER_FILL,
   LAYER_FRIEND,
   LAYER_OVERLAP,
@@ -17,8 +19,10 @@ import {
   LAYER_VISITED,
   MAP_PALETTES,
   idleRotationStep,
+  nightLayerOpacity,
   shouldIdleRotate,
 } from "../lib/map/map-style";
+import { TWILIGHT_SHIFTS } from "../lib/map/daylight";
 
 describe("buildVisitedFilter", () => {
   it("matches the given codes", () => {
@@ -73,6 +77,7 @@ describe("buildMapStyle", () => {
       LAYER_VISITED,
       LAYER_FRIEND,
       LAYER_OVERLAP,
+      LAYER_NIGHT,
       LAYER_BORDER,
       LAYER_SELECTED,
     ]);
@@ -95,7 +100,10 @@ describe("buildMapStyle", () => {
   });
 
   it("is self-contained (no external tiles or glyphs)", () => {
-    expect(Object.keys(style.sources)).toEqual([COUNTRIES_SOURCE]);
+    expect(Object.keys(style.sources)).toEqual([
+      COUNTRIES_SOURCE,
+      DAYLIGHT_SOURCE,
+    ]);
     expect(style.glyphs).toBeUndefined();
     expect(style.sprite).toBeUndefined();
   });
@@ -152,5 +160,30 @@ describe("idleRotationStep", () => {
       181 - IDLE_ROTATION_DEG_PER_SEC,
     );
     expect(idleRotationStep(0, 0)).toBe(0);
+  });
+});
+
+describe("night shading layer", () => {
+  it("sits over the fills and under the borders, fed by the daylight source", () => {
+    for (const theme of ["dark", "light"] as const) {
+      const style = buildMapStyle(theme);
+      const ids = style.layers.map((layer) => layer.id);
+      expect(ids.indexOf(LAYER_NIGHT)).toBeGreaterThan(ids.indexOf(LAYER_OVERLAP));
+      expect(ids.indexOf(LAYER_NIGHT)).toBeLessThan(ids.indexOf(LAYER_BORDER));
+      const night = style.layers.find((layer) => layer.id === LAYER_NIGHT);
+      expect(night).toMatchObject({ type: "fill", source: DAYLIGHT_SOURCE });
+      // Empty until MapCanvas sets real data (keeps the style time-free).
+      expect(style.sources[DAYLIGHT_SOURCE]).toEqual({
+        type: "geojson",
+        data: { type: "FeatureCollection", features: [] },
+      });
+    }
+  });
+
+  it("splits the target darkness across the stacked twilight copies", () => {
+    const per = nightLayerOpacity(0.5);
+    expect(1 - Math.pow(1 - per, TWILIGHT_SHIFTS.length)).toBeCloseTo(0.5, 10);
+    expect(per).toBeGreaterThan(0);
+    expect(per).toBeLessThan(0.5);
   });
 });

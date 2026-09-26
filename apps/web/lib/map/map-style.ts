@@ -1,6 +1,7 @@
 /**
  * Pure builders for the MapLibre style, layer filters and idle-rotation
- * logic — extracted so they are unit-testable without WebGL.
+ * logic — extracted so they are unit-testable without WebGL. The night
+ * shading geometry lives in ./daylight.
  */
 
 import type {
@@ -9,6 +10,7 @@ import type {
 } from "maplibre-gl";
 
 import { type Theme } from "../theme";
+import { EMPTY_DAYLIGHT, TWILIGHT_SHIFTS } from "./daylight";
 
 export const COUNTRIES_SOURCE = "countries";
 export const COUNTRIES_DATA_URL = "/geo/countries.geojson";
@@ -19,6 +21,9 @@ export const LAYER_FRIEND = "countries-friend";
 export const LAYER_OVERLAP = "countries-overlap";
 export const LAYER_BORDER = "countries-border";
 export const LAYER_SELECTED = "countries-selected";
+/** Night-side shading; data is set at runtime (see lib/map/daylight). */
+export const DAYLIGHT_SOURCE = "daylight";
+export const LAYER_NIGHT = "night";
 
 export interface MapPalette {
   /** Space around the globe. */
@@ -41,6 +46,9 @@ export interface MapPalette {
   overlapHover: string;
   border: string;
   selectedOutline: string;
+  /** Night-side tint and how dark the deepest night gets (0–1). */
+  night: string;
+  nightOpacity: number;
 }
 
 /** Per-theme map palettes; the visited accent is the same in both. */
@@ -60,6 +68,8 @@ export const MAP_PALETTES: Record<Theme, MapPalette> = {
     overlapHover: "#f59e0b",
     border: "#0b0e14",
     selectedOutline: "#5eead4",
+    night: "#000000",
+    nightOpacity: 0.5,
   },
   light: {
     space: "#dee5ee",
@@ -76,6 +86,8 @@ export const MAP_PALETTES: Record<Theme, MapPalette> = {
     overlapHover: "#b45309",
     border: "#ffffff",
     selectedOutline: "#0f766e",
+    night: "#1e293b",
+    nightOpacity: 0.3,
   },
 };
 
@@ -96,6 +108,14 @@ export function buildSelectedFilter(
   iso: string | null,
 ): FilterSpecification {
   return ["==", ["get", "iso"], iso ?? ""] as FilterSpecification;
+}
+
+/**
+ * Per-polygon opacity so the stacked twilight copies add up to roughly
+ * `total` where they all overlap (deep night).
+ */
+export function nightLayerOpacity(total: number): number {
+  return 1 - Math.pow(1 - total, 1 / TWILIGHT_SHIFTS.length);
 }
 
 /** Fill color that lightens while hovered, via the `hover` feature-state. */
@@ -143,6 +163,10 @@ export function buildMapStyle(theme: Theme = "dark"): StyleSpecification {
         type: "geojson",
         data: COUNTRIES_DATA_URL,
         promoteId: "iso",
+      },
+      [DAYLIGHT_SOURCE]: {
+        type: "geojson",
+        data: EMPTY_DAYLIGHT,
       },
     },
     layers: [
@@ -196,6 +220,18 @@ export function buildMapStyle(theme: Theme = "dark"): StyleSpecification {
             MAP_COLORS.overlap,
             MAP_COLORS.overlapHover,
           ),
+        },
+      },
+      // Over the fills (countries and oceans darken at night) but under the
+      // borders and the selection outline, which stay crisp.
+      {
+        id: LAYER_NIGHT,
+        type: "fill",
+        source: DAYLIGHT_SOURCE,
+        paint: {
+          "fill-color": MAP_COLORS.night,
+          "fill-opacity": nightLayerOpacity(MAP_COLORS.nightOpacity),
+          "fill-antialias": false,
         },
       },
       {
