@@ -7,6 +7,7 @@ import {
   render,
   screen,
   waitFor,
+  within,
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -194,6 +195,58 @@ describe("HomePage", () => {
       expect(map.filters.get(LAYER_VISITED)).toEqual(buildVisitedFilter([])),
     );
     expect(screen.getByTestId("stats-count")).toHaveTextContent("0");
+  });
+
+  it("groups all countries by continent with visited/total, foldable", async () => {
+    mockServer(true);
+    renderHome();
+    await waitForAuthSettled();
+    await waitFor(() =>
+      expect(queryClient.getQueryState(["visits", "me"])?.status).toBe(
+        "success",
+      ),
+    );
+    fireEvent.click(screen.getByTestId("country-row-FR"));
+    await waitFor(() =>
+      expect(screen.getByTestId("visited-heading")).toHaveTextContent(
+        "Visited (1)",
+      ),
+    );
+
+    // Every continent has a section, in canonical order.
+    const headings = screen.getAllByTestId(/^region-heading-/);
+    expect(headings.map((heading) => heading.textContent)).toEqual([
+      expect.stringMatching(/^Africa/),
+      expect.stringMatching(/^Antarctica/),
+      expect.stringMatching(/^Asia/),
+      expect.stringMatching(/^Europe/),
+      expect.stringMatching(/^North America/),
+      expect.stringMatching(/^Oceania/),
+      expect.stringMatching(/^South America/),
+    ]);
+    // France counts towards Europe's visited/total.
+    const europe = screen.getByTestId("region-heading-europe");
+    expect(europe).toHaveTextContent(/1\/\d+/);
+    expect(screen.getByTestId("region-heading-asia")).toHaveTextContent(
+      /0\/\d+/,
+    );
+    expect(
+      within(screen.getByTestId("region-europe")).getByTestId("country-row-FR"),
+    ).toBeInTheDocument();
+
+    // Folding a region hides its rows; the heading keeps the count.
+    fireEvent.click(europe);
+    expect(europe).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByTestId("country-row-FR")).not.toBeInTheDocument();
+    expect(screen.getByTestId("visited-row-FR")).toBeInTheDocument();
+    expect(europe).toHaveTextContent(/1\/\d+/);
+
+    // A search shows matches even inside a folded region.
+    fireEvent.change(screen.getByTestId("country-search"), {
+      target: { value: "franc" },
+    });
+    expect(screen.getByTestId("country-row-FR")).toBeInTheDocument();
+    expect(screen.getAllByTestId(/^region-heading-/)).toHaveLength(1);
   });
 
   it("filters the list and flies to a picked country", async () => {
