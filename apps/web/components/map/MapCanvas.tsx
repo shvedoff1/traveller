@@ -17,12 +17,12 @@ import {
   buildMapStyle,
   buildSelectedFilter,
   COUNTRIES_SOURCE,
-  IDLE_ROTATION_DEG_PER_SEC,
   LAYER_FILL,
   LAYER_FRIEND,
   LAYER_OVERLAP,
   LAYER_SELECTED,
   LAYER_VISITED,
+  idleRotationStep,
   shouldIdleRotate,
 } from "../../lib/map/map-style";
 import { useThemeStore } from "../../lib/stores/theme-store";
@@ -238,7 +238,7 @@ export function MapCanvas({
       if (shouldIdleRotate(map.getZoom(), Date.now() - lastInteractionAt)) {
         const center = map.getCenter();
         map.setCenter(
-          [center.lng + IDLE_ROTATION_DEG_PER_SEC * deltaSeconds, center.lat],
+          [idleRotationStep(center.lng, deltaSeconds), center.lat],
           { idleRotation: true },
         );
       }

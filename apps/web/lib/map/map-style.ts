@@ -226,6 +226,18 @@ export function buildMapStyle(theme: Theme = "dark"): StyleSpecification {
 export const IDLE_ROTATION_DELAY_MS = 5_000;
 /** Slow spin: one revolution every ~2.5 minutes. */
 export const IDLE_ROTATION_DEG_PER_SEC = 2.5;
+/**
+ * Earth turns west → east, so to a fixed observer the longitude under the
+ * view center DEcreases over time (the surface drifts left → right).
+ */
+export const IDLE_ROTATION_DIRECTION = -1;
+
+/** Map-center longitude after `deltaSeconds` of idle spin, in [-180, 180). */
+export function idleRotationStep(lng: number, deltaSeconds: number): number {
+  const next =
+    lng + IDLE_ROTATION_DIRECTION * IDLE_ROTATION_DEG_PER_SEC * deltaSeconds;
+  return ((((next + 180) % 360) + 360) % 360) - 180;
+}
 /** Only rotate while zoomed out enough to look like a globe. */
 export const IDLE_ROTATION_MAX_ZOOM = 3;
 
