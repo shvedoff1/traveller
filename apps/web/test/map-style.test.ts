@@ -6,6 +6,7 @@ import {
   buildVisitedFilter,
   COUNTRIES_DATA_URL,
   COUNTRIES_SOURCE,
+  IDLE_ROTATION_DEG_PER_SEC,
   IDLE_ROTATION_DELAY_MS,
   IDLE_ROTATION_MAX_ZOOM,
   LAYER_BORDER,
@@ -15,6 +16,7 @@ import {
   LAYER_SELECTED,
   LAYER_VISITED,
   MAP_PALETTES,
+  idleRotationStep,
   shouldIdleRotate,
 } from "../lib/map/map-style";
 
@@ -136,5 +138,19 @@ describe("shouldIdleRotate", () => {
       false,
     );
     expect(shouldIdleRotate(8, 60_000)).toBe(false);
+  });
+});
+
+describe("idleRotationStep", () => {
+  it("spins like the Earth: west → east, so the center longitude decreases", () => {
+    expect(idleRotationStep(10, 1)).toBeCloseTo(10 - IDLE_ROTATION_DEG_PER_SEC);
+    expect(idleRotationStep(10, 2)).toBeLessThan(idleRotationStep(10, 1));
+  });
+
+  it("wraps across the antimeridian", () => {
+    expect(idleRotationStep(-179, 1)).toBeCloseTo(
+      181 - IDLE_ROTATION_DEG_PER_SEC,
+    );
+    expect(idleRotationStep(0, 0)).toBe(0);
   });
 });

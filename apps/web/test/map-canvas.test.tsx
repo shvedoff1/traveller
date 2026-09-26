@@ -26,13 +26,14 @@ function lastMap(): MockMap {
 describe("MapCanvas", () => {
   beforeEach(() => {
     MockMap.instances = [];
-    useThemeStore.setState({ theme: "dark" });
+    useThemeStore.setState({ theme: "dark", preference: "auto" });
     sessionStorage.clear();
   });
 
   afterEach(() => {
     cleanup();
-    useThemeStore.setState({ theme: "dark" });
+    localStorage.clear();
+    useThemeStore.setState({ theme: "dark", preference: "auto" });
   });
 
   it("mounts a single map on its container and removes it on unmount", () => {
@@ -103,12 +104,12 @@ describe("MapCanvas", () => {
     expect(map.options.style).toEqual(buildMapStyle("dark"));
     expect(map.setStyleCalls).toEqual([]);
 
-    act(() => useThemeStore.getState().setTheme("light"));
+    act(() => useThemeStore.getState().setPreference("light"));
     expect(map.setStyleCalls).toEqual([buildMapStyle("light")]);
     expect(map.filters.get(LAYER_VISITED)).toEqual(buildVisitedFilter(["FR"]));
     expect(map.filters.get(LAYER_SELECTED)).toEqual(buildSelectedFilter("FR"));
 
-    act(() => useThemeStore.getState().setTheme("dark"));
+    act(() => useThemeStore.getState().setPreference("dark"));
     expect(map.setStyleCalls).toEqual([
       buildMapStyle("light"),
       buildMapStyle("dark"),
@@ -131,6 +132,25 @@ describe("MapCanvas", () => {
     // Clicks that resolve no feature are ignored.
     lastMap().fire("click", { features: [] }, LAYER_FILL);
     expect(onCountryClick).toHaveBeenCalledTimes(1);
+  });
+
+  it("skips external highlight until the style has loaded", () => {
+    const { rerender } = render(
+      <MapCanvas visited={[]} selected={null} highlighted={null} />,
+    );
+    const map = lastMap();
+    // Style still booting: MapLibre throws on feature-state, so we must not
+    // touch it (a fast tap on a panel row used to crash the page).
+    const getLayer = vi.spyOn(map, "getLayer").mockReturnValue(
+      undefined as unknown as { id: string },
+    );
+    vi.spyOn(map, "setFeatureState").mockImplementation(() => {
+      throw new Error("Style is not done loading.");
+    });
+    expect(() =>
+      rerender(<MapCanvas visited={[]} selected={null} highlighted="FR" />),
+    ).not.toThrow();
+    getLayer.mockRestore();
   });
 
   it("mirrors external highlight onto the hover feature-state", () => {

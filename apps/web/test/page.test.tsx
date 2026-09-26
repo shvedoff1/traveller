@@ -18,6 +18,7 @@ import {
   buildVisitedFilter,
 } from "../lib/map/map-style";
 import { useMapStore } from "../lib/stores/map-store";
+import { useToastStore } from "../lib/stores/toast-store";
 import { applyUpsert } from "../lib/visits/visits-cache";
 import { api } from "../lib/api-client";
 import { MockMap } from "./mocks/maplibre-gl";
@@ -88,6 +89,12 @@ function lastMap(): MockMap {
   return map;
 }
 
+/** Flip the map into edit mode (click toggles visited). */
+function enterEditMode() {
+  fireEvent.click(screen.getByTestId("map-mode-edit"));
+  expect(useMapStore.getState().mode).toBe("edit");
+}
+
 function clickCountry(map: MockMap, iso: string) {
   act(() => {
     map.fire(
@@ -103,6 +110,7 @@ describe("HomePage", () => {
     vi.clearAllMocks();
     MockMap.instances = [];
     useMapStore.setState(useMapStore.getInitialState(), true);
+    localStorage.clear();
   });
 
   afterEach(() => {
@@ -121,21 +129,21 @@ describe("HomePage", () => {
     await waitForAuthSettled();
   });
 
-  it("prompts logged-out visitors to log in instead of mutating", async () => {
+  it("shows logged-out visitors the country card with a login CTA", async () => {
     mockServer(false);
     renderHome();
     await waitForAuthSettled();
 
+    // No mode switch without an account — the map is look-only.
+    expect(screen.queryByTestId("map-mode-toggle")).not.toBeInTheDocument();
     clickCountry(lastMap(), "FR");
-    expect(await screen.findByTestId("login-prompt")).toBeInTheDocument();
+    const sheet = await screen.findByTestId("country-detail-sheet");
+    expect(sheet).toHaveTextContent("France");
+    expect(sheet).toHaveTextContent("Log in to mark it as visited");
     expect(mocked.upsertVisit).not.toHaveBeenCalled();
-    // Selection still works: the detail sheet opens with a login CTA.
-    expect(screen.getByTestId("country-detail-sheet")).toHaveTextContent(
-      "France",
-    );
   });
 
-  it("toggles a country optimistically when logged in", async () => {
+  it("view mode (default): a map click only shows the country", async () => {
     mockServer(true);
     renderHome();
     await waitForAuthSettled();
@@ -144,6 +152,69 @@ describe("HomePage", () => {
         "success",
       ),
     );
+
+    expect(await screen.findByTestId("map-mode-toggle")).toHaveAttribute(
+      "data-mode",
+      "view",
+    );
+    expect(screen.queryByTestId("edit-mode-frame")).not.toBeInTheDocument();
+    clickCountry(lastMap(), "FR");
+    expect(await screen.findByTestId("country-detail-sheet")).toHaveTextContent(
+      "France",
+    );
+    expect(useMapStore.getState().selected).toBe("FR");
+    expect(mocked.upsertVisit).not.toHaveBeenCalled();
+    expect(mocked.deleteVisit).not.toHaveBeenCalled();
+
+    // Marking is an explicit button in the card.
+    fireEvent.click(screen.getByTestId("visit-save"));
+    await waitFor(() =>
+      expect(mocked.upsertVisit).toHaveBeenCalledExactlyOnceWith("FR", {}),
+    );
+  });
+
+  it("switches modes with the toggle and the E key, and remembers it", async () => {
+    mockServer(true);
+    renderHome();
+    await waitForAuthSettled();
+    await screen.findByTestId("map-mode-toggle");
+
+    enterEditMode();
+    expect(screen.getByTestId("edit-mode-frame")).toBeInTheDocument();
+    expect(localStorage.getItem("traveller:map-mode")).toBe("edit");
+
+    fireEvent.keyDown(window, { key: "e" });
+    expect(useMapStore.getState().mode).toBe("view");
+    expect(localStorage.getItem("traveller:map-mode")).toBe("view");
+
+    // Typing an "e" in the search box is not a mode switch.
+    fireEvent.keyDown(screen.getByTestId("country-search"), { key: "e" });
+    expect(useMapStore.getState().mode).toBe("view");
+  });
+
+  it("restores a saved edit mode on load", async () => {
+    localStorage.setItem("traveller:map-mode", "edit");
+    mockServer(true);
+    renderHome();
+    await waitForAuthSettled();
+    await waitFor(() =>
+      expect(screen.getByTestId("map-mode-toggle")).toHaveAttribute(
+        "data-mode",
+        "edit",
+      ),
+    );
+  });
+
+  it("edit mode: a map click toggles a country optimistically", async () => {
+    mockServer(true);
+    renderHome();
+    await waitForAuthSettled();
+    await waitFor(() =>
+      expect(queryClient.getQueryState(["visits", "me"])?.status).toBe(
+        "success",
+      ),
+    );
+    enterEditMode();
 
     const map = lastMap();
     clickCountry(map, "FR");
@@ -158,11 +229,11 @@ describe("HomePage", () => {
     await waitFor(() =>
       expect(screen.getByTestId("stats-count")).toHaveTextContent("1"),
     );
-    expect(screen.getByTestId("visited-heading")).toHaveTextContent(
-      "Visited (1)",
+    expect(screen.getByTestId("list-filter-visited")).toHaveTextContent(
+      "Visited 1",
     );
-    expect(screen.getByTestId("country-row-FR")).toHaveAttribute(
-      "aria-pressed",
+    expect(screen.getByTestId("country-toggle-FR")).toHaveAttribute(
+      "aria-checked",
       "true",
     );
 
@@ -187,6 +258,7 @@ describe("HomePage", () => {
         "success",
       ),
     );
+    enterEditMode();
 
     const map = lastMap();
     clickCountry(map, "FR");
@@ -206,10 +278,10 @@ describe("HomePage", () => {
         "success",
       ),
     );
-    fireEvent.click(screen.getByTestId("country-row-FR"));
+    fireEvent.click(screen.getByTestId("country-toggle-FR"));
     await waitFor(() =>
-      expect(screen.getByTestId("visited-heading")).toHaveTextContent(
-        "Visited (1)",
+      expect(screen.getByTestId("list-filter-visited")).toHaveTextContent(
+        "Visited 1",
       ),
     );
 
@@ -238,7 +310,6 @@ describe("HomePage", () => {
     fireEvent.click(europe);
     expect(europe).toHaveAttribute("aria-expanded", "false");
     expect(screen.queryByTestId("country-row-FR")).not.toBeInTheDocument();
-    expect(screen.getByTestId("visited-row-FR")).toBeInTheDocument();
     expect(europe).toHaveTextContent(/1\/\d+/);
 
     // A search shows matches even inside a folded region.
@@ -261,11 +332,85 @@ describe("HomePage", () => {
     expect(rows).toHaveLength(1);
     expect(rows[0]).toHaveTextContent("New Zealand");
 
+    // The row opens the country (select + fly) without marking it…
     fireEvent.click(rows[0]!);
     const map = lastMap();
     await waitFor(() => expect(map.flyToCalls).toHaveLength(1));
     expect(map.flyToCalls[0]?.zoom).toBeGreaterThan(1);
-    expect(mocked.upsertVisit).toHaveBeenCalledExactlyOnceWith("NZ", {});
+    expect(useMapStore.getState().selected).toBe("NZ");
+    expect(screen.getByTestId("country-row-NZ")).toHaveAttribute(
+      "aria-current",
+      "true",
+    );
+    expect(mocked.upsertVisit).not.toHaveBeenCalled();
+
+    // …marking is the checkbox.
+    fireEvent.click(screen.getByTestId("country-toggle-NZ"));
+    await waitFor(() =>
+      expect(mocked.upsertVisit).toHaveBeenCalledExactlyOnceWith("NZ", {}),
+    );
+  });
+
+  it("filters by visited status and undoes an unmark with its details", async () => {
+    mockServer(true);
+    serverVisits = [
+      {
+        countryCode: "FR",
+        visitedYear: 2019,
+        note: "Croissants",
+        createdAt: new Date().toISOString(),
+      },
+    ];
+    renderHome();
+    await waitForAuthSettled();
+    await waitFor(() =>
+      expect(screen.getByTestId("country-toggle-FR")).toHaveAttribute(
+        "aria-checked",
+        "true",
+      ),
+    );
+    // The year shows next to a visited country.
+    expect(screen.getByTestId("country-row-FR")).toHaveTextContent("2019");
+
+    fireEvent.click(screen.getByTestId("list-filter-visited"));
+    expect(screen.getAllByTestId(/^country-row-/)).toHaveLength(1);
+    expect(screen.getAllByTestId(/^region-heading-/)).toHaveLength(1);
+
+    fireEvent.click(screen.getByTestId("list-filter-unvisited"));
+    expect(screen.queryByTestId("country-row-FR")).not.toBeInTheDocument();
+    expect(screen.getByTestId("country-row-JP")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByTestId("list-filter-all"));
+    fireEvent.click(screen.getByTestId("country-toggle-FR"));
+    await waitFor(() =>
+      expect(mocked.deleteVisit).toHaveBeenCalledExactlyOnceWith("FR"),
+    );
+    const toast = useToastStore
+      .getState()
+      .toasts.find((candidate) => candidate.message === "Removed France");
+    expect(toast?.action?.label).toBe("Undo");
+
+    act(() => toast!.action!.onClick());
+    await waitFor(() =>
+      expect(mocked.upsertVisit).toHaveBeenCalledExactlyOnceWith("FR", {
+        visitedYear: 2019,
+        note: "Croissants",
+      }),
+    );
+  });
+
+  it("folds and unfolds every region at once", async () => {
+    mockServer(true);
+    renderHome();
+    await waitForAuthSettled();
+
+    fireEvent.click(screen.getByTestId("fold-all"));
+    expect(screen.queryAllByTestId(/^country-row-/)).toHaveLength(0);
+    for (const heading of screen.getAllByTestId(/^region-heading-/)) {
+      expect(heading).toHaveAttribute("aria-expanded", "false");
+    }
+    fireEvent.click(screen.getByTestId("fold-all"));
+    expect(screen.getByTestId("country-row-FR")).toBeInTheDocument();
   });
 
   it("edits year/note through the detail sheet and re-displays them", async () => {
@@ -278,7 +423,8 @@ describe("HomePage", () => {
       ),
     );
 
-    // Mark France via its row — the detail sheet opens.
+    // Mark France via its checkbox, then open it — the detail sheet shows.
+    fireEvent.click(screen.getByTestId("country-toggle-FR"));
     fireEvent.click(screen.getByTestId("country-row-FR"));
     const sheet = await screen.findByTestId("country-detail-sheet");
     expect(sheet).toHaveTextContent("France");
@@ -320,6 +466,7 @@ describe("HomePage", () => {
     mockServer(true);
     renderHome();
     await waitForAuthSettled();
+    enterEditMode();
 
     clickCountry(lastMap(), "XK");
     expect(useMapStore.getState().selected).toBeNull();

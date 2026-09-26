@@ -49,4 +49,13 @@ describe("toast store", () => {
     useToastStore.getState().dismissToast(id);
     expect(useToastStore.getState().toasts).toEqual([]);
   });
+
+  it("carries an optional action on success toasts", () => {
+    const onClick = () => {};
+    pushSuccessToast("Removed France", { label: "Undo", onClick });
+    const [toast] = useToastStore.getState().toasts;
+    expect(toast?.action).toEqual({ label: "Undo", onClick });
+    pushSuccessToast("plain");
+    expect(useToastStore.getState().toasts[1]).not.toHaveProperty("action");
+  });
 });

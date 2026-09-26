@@ -9,6 +9,7 @@ import { GlobalRateLimitGuard } from "./rate-limit/global-rate-limit.guard";
 import { RateLimitModule } from "./rate-limit/rate-limit.module";
 import { AuthModule } from "./modules/auth/auth.module";
 import { FollowsModule } from "./modules/follows/follows.module";
+import { GroupsModule } from "./modules/groups/groups.module";
 import { HealthModule } from "./modules/health/health.module";
 import { StatsModule } from "./modules/stats/stats.module";
 import { UsersModule } from "./modules/users/users.module";
@@ -37,6 +38,7 @@ import { RedisModule } from "./redis/redis.module";
     UsersModule,
     VisitsModule,
     StatsModule,
+    GroupsModule,
   ],
   providers: [
     // Guards run in registration order: rate-limit first (cheap, applies

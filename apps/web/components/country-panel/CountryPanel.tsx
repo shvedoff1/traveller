@@ -3,22 +3,18 @@
 import { COUNTRIES, type Continent } from "@traveller/shared";
 import { useCallback, useMemo, useState } from "react";
 
-import { filterCountries, groupByContinent } from "../../lib/country-filter";
+import {
+  type StatusFilter,
+  filterByStatus,
+  filterCountries,
+  groupByContinent,
+} from "../../lib/country-filter";
 import { useMapStore } from "../../lib/stores/map-store";
+import { pushSuccessToast } from "../../lib/stores/toast-store";
 import { useMapVisits } from "../map/useMapVisits";
 import { CountryRow } from "./CountryRow";
 import { CountrySearch } from "./CountrySearch";
 
-/**
- * Floating glassmorphism panel on the right: search, the "Visited (N)"
- * section, then all countries grouped by continent (each section shows
- * its visited/total and folds away on a heading click). Rows toggle the
- * visited state, hover highlights the country on the map, click also
- * flies to it.
- *
- * Collapsible; below the `md` breakpoint it collapses to a floating
- * search pill by default (polish planned in task 06).
- */
 /** Countries per continent — the denominator in a region heading. */
 const CONTINENT_TOTALS: ReadonlyMap<Continent, number> = COUNTRIES.reduce(
   (totals, country) =>
@@ -26,22 +22,42 @@ const CONTINENT_TOTALS: ReadonlyMap<Continent, number> = COUNTRIES.reduce(
   new Map<Continent, number>(),
 );
 
+const FILTERS: ReadonlyArray<{ id: StatusFilter; label: string }> = [
+  { id: "all", label: "All" },
+  { id: "visited", label: "Visited" },
+  { id: "unvisited", label: "Not yet" },
+];
+
+/**
+ * Floating glassmorphism panel on the right: search, an All / Visited /
+ * Not yet filter, then countries grouped by continent under sticky
+ * headings (visited/total + a progress bar; a heading click folds the
+ * section).
+ *
+ * Each row has two targets: the name opens the country (select + fly,
+ * the detail card shows up) and the round checkbox marks/unmarks it.
+ * Unmarking offers an Undo that restores the year and note.
+ *
+ * Collapsible; below the `md` breakpoint it collapses to a floating
+ * search pill that expands into a bottom sheet.
+ */
 export function CountryPanel() {
   const [query, setQuery] = useState("");
+  const [status, setStatus] = useState<StatusFilter>("all");
   // null = untouched: CSS decides (open on md+, pill on mobile).
   const [open, setOpen] = useState<boolean | null>(null);
 
-  const { visited, toggle, ready, isLoggedIn } = useMapVisits();
+  const { visited, visitOf, toggle, save, ready, isLoggedIn } = useMapVisits();
+  const selected = useMapStore((state) => state.selected);
   const setSelected = useMapStore((state) => state.setSelected);
   const setHighlighted = useMapStore((state) => state.setHighlighted);
   const flyToCountry = useMapStore((state) => state.flyToCountry);
   const showLoginPrompt = useMapStore((state) => state.showLoginPrompt);
 
   const visitedSet = useMemo(() => new Set(visited), [visited]);
-  const filtered = useMemo(() => filterCountries(COUNTRIES, query), [query]);
-  const visitedCountries = useMemo(
-    () => filtered.filter((country) => visitedSet.has(country.code)),
-    [filtered, visitedSet],
+  const filtered = useMemo(
+    () => filterByStatus(filterCountries(COUNTRIES, query), visitedSet, status),
+    [query, visitedSet, status],
   );
   const regions = useMemo(() => groupByContinent(filtered), [filtered]);
   // Visited-per-continent over the whole list (not the filtered one), so
@@ -68,31 +84,50 @@ export function CountryPanel() {
   }, []);
   // A search always shows its matches, even inside a folded region.
   const searching = query.trim().length > 0;
+  const allFolded =
+    regions.length > 0 &&
+    regions.every((region) => collapsed.has(region.continent));
 
-  // Row click: select + fly, and mark unvisited countries. Visited rows
-  // open the detail sheet instead of destructively clearing year/note —
-  // unmark lives in the sheet (or a map click, which toggles both ways).
-  const handleRowClick = useCallback(
+  const handleOpen = useCallback(
     (iso: string) => {
       setSelected(iso);
       flyToCountry(iso);
+    },
+    [setSelected, flyToCountry],
+  );
+
+  const handleToggle = useCallback(
+    (iso: string) => {
       if (!ready) return;
       if (!isLoggedIn) {
         showLoginPrompt();
         return;
       }
-      if (!visitedSet.has(iso)) toggle(iso);
+      const previous = visitOf(iso);
+      toggle(iso);
+      if (previous) {
+        const name =
+          COUNTRIES.find((country) => country.code === iso)?.name ?? iso;
+        pushSuccessToast(`Removed ${name}`, {
+          label: "Undo",
+          onClick: () =>
+            save(iso, {
+              ...(previous.visitedYear
+                ? { visitedYear: previous.visitedYear }
+                : {}),
+              ...(previous.note ? { note: previous.note } : {}),
+            }),
+        });
+      }
     },
-    [
-      setSelected,
-      flyToCountry,
-      ready,
-      isLoggedIn,
-      visitedSet,
-      toggle,
-      showLoginPrompt,
-    ],
+    [ready, isLoggedIn, showLoginPrompt, visitOf, toggle, save],
   );
+
+  const counts: Record<StatusFilter, number> = {
+    all: COUNTRIES.length,
+    visited: visited.length,
+    unvisited: COUNTRIES.length - visited.length,
+  };
 
   const panelClass =
     open === null ? "hidden md:flex" : open ? "flex" : "hidden";
@@ -135,59 +170,101 @@ export function CountryPanel() {
           </button>
         </div>
 
-        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto pr-1">
-          <div>
-            <h2
-              className="px-2 pb-1 text-xs font-semibold uppercase tracking-wide text-muted"
-              data-testid="visited-heading"
-            >
-              Visited ({visited.length})
-            </h2>
-            {visitedCountries.length === 0 ? (
-              <p className="px-2 py-1 text-sm text-muted">
-                {visited.length === 0
-                  ? "Nothing yet — tap a country to begin."
-                  : "No visited countries match."}
-              </p>
-            ) : (
-              visitedCountries.map((country) => (
-                <CountryRow
-                  key={country.code}
-                  country={country}
-                  visited
-                  testIdPrefix="visited-row"
-                  onClick={handleRowClick}
-                  onHoverChange={setHighlighted}
-                />
-              ))
-            )}
+        <div className="flex items-center gap-2">
+          <div
+            role="tablist"
+            aria-label="Show countries"
+            className="flex flex-1 gap-1 rounded-full border border-edge p-0.5"
+          >
+            {FILTERS.map((filter) => (
+              <button
+                key={filter.id}
+                type="button"
+                role="tab"
+                aria-selected={status === filter.id}
+                data-testid={`list-filter-${filter.id}`}
+                onClick={() => setStatus(filter.id)}
+                className={`min-h-7 flex-1 whitespace-nowrap rounded-full px-2 text-xs transition-colors duration-200 ease-out max-md:min-h-10 ${
+                  status === filter.id
+                    ? "bg-surface-strong font-medium text-foreground"
+                    : "text-muted hover:text-foreground"
+                }`}
+              >
+                {filter.label}{" "}
+                <span className="tabular-nums opacity-70">
+                  {counts[filter.id]}
+                </span>
+              </button>
+            ))}
           </div>
+          {!searching && regions.length > 1 ? (
+            <button
+              type="button"
+              data-testid="fold-all"
+              title={allFolded ? "Expand all" : "Collapse all"}
+              aria-label={allFolded ? "Expand all" : "Collapse all"}
+              onClick={() =>
+                setCollapsed(
+                  allFolded
+                    ? new Set()
+                    : new Set(regions.map((region) => region.continent)),
+                )
+              }
+              className="flex size-7 shrink-0 items-center justify-center rounded-full text-muted transition-colors duration-200 ease-out hover:bg-surface-strong hover:text-foreground max-md:size-10"
+            >
+              <span aria-hidden className="text-xs">
+                {allFolded ? "▾" : "▴"}
+              </span>
+            </button>
+          ) : null}
+        </div>
 
+        <div className="min-h-0 flex-1 overflow-y-auto pr-1">
           {regions.length === 0 ? (
-            <p className="px-2 py-1 text-sm text-muted">No matches.</p>
+            <p className="px-2 py-1 text-sm text-muted" data-testid="list-empty">
+              {emptyMessage(status, searching, visited.length)}
+            </p>
           ) : (
             regions.map((region) => {
               const isOpen = searching || !collapsed.has(region.continent);
               const slug = region.continent.toLowerCase().replace(/\s+/g, "-");
+              const done = visitedByContinent.get(region.continent) ?? 0;
+              const total = CONTINENT_TOTALS.get(region.continent) ?? 0;
               return (
-                <div key={region.continent} data-testid={`region-${slug}`}>
+                <div
+                  key={region.continent}
+                  data-testid={`region-${slug}`}
+                  className="pb-2"
+                >
                   <button
                     type="button"
                     aria-expanded={isOpen}
                     data-testid={`region-heading-${slug}`}
                     onClick={() => toggleRegion(region.continent)}
-                    className="flex w-full items-center justify-between rounded-lg px-2 pb-1 text-left text-xs font-semibold uppercase tracking-wide text-muted transition-colors duration-200 ease-out hover:text-foreground max-md:min-h-11"
+                    className="sticky top-0 z-10 flex w-full flex-col gap-1 rounded-lg bg-background px-2 py-1.5 text-left transition-colors duration-200 ease-out hover:text-foreground max-md:min-h-11"
                   >
-                    <span>{region.continent}</span>
-                    <span className="flex items-center gap-2 font-normal normal-case tracking-normal">
-                      {visitedByContinent.get(region.continent) ?? 0}/
-                      {CONTINENT_TOTALS.get(region.continent) ?? 0}
-                      <span
-                        aria-hidden
-                        className={`inline-block transition-transform duration-200 ease-out ${isOpen ? "rotate-90" : ""}`}
-                      >
-                        ›
+                    <span className="flex w-full items-center justify-between text-xs font-semibold uppercase tracking-wide text-muted">
+                      <span>{region.continent}</span>
+                      <span className="flex items-center gap-2 font-normal normal-case tracking-normal tabular-nums">
+                        {done}/{total}
+                        <span
+                          aria-hidden
+                          className={`inline-block transition-transform duration-200 ease-out ${isOpen ? "rotate-90" : ""}`}
+                        >
+                          ›
+                        </span>
                       </span>
+                    </span>
+                    <span
+                      aria-hidden
+                      className="block h-0.5 w-full overflow-hidden rounded-full bg-edge"
+                    >
+                      <span
+                        className="block h-full rounded-full bg-accent transition-[width] duration-300 ease-out"
+                        style={{
+                          width: `${total ? (done / total) * 100 : 0}%`,
+                        }}
+                      />
                     </span>
                   </button>
                   {isOpen
@@ -196,7 +273,10 @@ export function CountryPanel() {
                           key={country.code}
                           country={country}
                           visited={visitedSet.has(country.code)}
-                          onClick={handleRowClick}
+                          visitedYear={visitOf(country.code)?.visitedYear}
+                          selected={selected === country.code}
+                          onOpen={handleOpen}
+                          onToggle={handleToggle}
                           onHoverChange={setHighlighted}
                         />
                       ))
@@ -209,4 +289,17 @@ export function CountryPanel() {
       </section>
     </>
   );
+}
+
+function emptyMessage(
+  status: StatusFilter,
+  searching: boolean,
+  visitedCount: number,
+): string {
+  if (searching) return "No matches.";
+  if (status === "visited" && visitedCount === 0) {
+    return "Nothing yet — tick a country to begin.";
+  }
+  if (status === "unvisited") return "You’ve been everywhere. Wow.";
+  return "No matches.";
 }

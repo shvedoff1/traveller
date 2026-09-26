@@ -47,6 +47,19 @@ function ToastCard({ toast }: { toast: Toast }) {
         {isSuccess ? "✓" : "⚠"}
       </span>
       <span>{toast.message}</span>
+      {toast.action ? (
+        <button
+          type="button"
+          data-testid="toast-action"
+          onClick={() => {
+            toast.action?.onClick();
+            dismissToast(toast.id);
+          }}
+          className="rounded-full bg-surface-strong px-3 py-0.5 font-medium transition-colors duration-200 ease-out hover:bg-edge-strong max-md:min-h-9"
+        >
+          {toast.action.label}
+        </button>
+      ) : null}
       <button
         type="button"
         aria-label="Dismiss notification"

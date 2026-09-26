@@ -1,6 +1,7 @@
 /**
  * Demo seed: four users with distinct visited-country sets and a small
- * follow graph. Idempotent — upserts by email, rebuilds visits/follows.
+ * follow graph and a demo group. Idempotent — upserts by email, rebuilds
+ * visits/follows/the group.
  *
  * Run with: pnpm --filter api exec prisma db seed
  */
@@ -116,9 +117,23 @@ async function main(): Promise<void> {
     }
   }
 
+  // One demo group: john's crew with everyone in it.
+  const johnId = idsByUsername.get("john")!;
+  await prisma.group.deleteMany({ where: { ownerId: johnId } });
+  await prisma.group.create({
+    data: {
+      name: "World wanderers",
+      ownerId: johnId,
+      inviteCode: "demo-wanders",
+      members: {
+        create: [...idsByUsername.values()].map((userId) => ({ userId })),
+      },
+    },
+  });
+
   console.log(
     `Seeded ${USERS.length} users, ${USERS.reduce((n, u) => n + u.countries.length, 0)} visits, ` +
-      `${Object.values(FOLLOWS).flat().length} follows.`,
+      `${Object.values(FOLLOWS).flat().length} follows, 1 group.`,
   );
 }
 

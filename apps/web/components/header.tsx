@@ -21,7 +21,7 @@ export function Header() {
   });
 
   return (
-    <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between px-5 py-4">
+    <header className="pointer-events-none absolute inset-x-0 top-0 z-20 flex items-center justify-between px-5 py-4 max-md:px-3">
       <Link
         href="/"
         className="pointer-events-auto flex min-h-9 items-center rounded-full bg-background/70 px-4 font-semibold tracking-tight backdrop-blur max-md:min-h-11"
@@ -29,10 +29,10 @@ export function Header() {
         Traveller
       </Link>
 
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2 max-md:gap-1">
         <ThemeToggle />
         {isLoading ? null : (
-          <div className="pointer-events-auto flex min-h-9 items-center rounded-full bg-background/70 px-4 backdrop-blur max-md:min-h-11">
+          <div className="pointer-events-auto flex min-h-9 items-center rounded-full bg-background/70 px-4 backdrop-blur max-md:min-h-11 max-md:px-3">
             {me ? (
               <UserChip
                 displayName={me.displayName}
@@ -76,13 +76,25 @@ function UserChip({
   const profileHref = username ? `/${username}` : "/welcome";
 
   return (
-    <div className="flex items-center gap-3" data-testid="user-chip">
+    <div className="flex items-center gap-3 max-md:gap-2" data-testid="user-chip">
       <Link
         href="/friends"
         data-testid="friends-link"
-        className="text-sm underline-offset-4 hover:underline"
+        aria-label="Friends"
+        className="text-sm underline-offset-4 hover:underline max-md:flex max-md:min-h-11 max-md:min-w-8 max-md:items-center max-md:justify-center"
       >
-        Friends
+        {/* Icons on phones (the header is tight there), text on md+. */}
+        <span className="max-md:hidden">Friends</span>
+        <FriendsIcon />
+      </Link>
+      <Link
+        href="/groups"
+        data-testid="groups-link"
+        aria-label="Groups"
+        className="text-sm underline-offset-4 hover:underline max-md:flex max-md:min-h-11 max-md:min-w-8 max-md:items-center max-md:justify-center"
+      >
+        <span className="max-md:hidden">Groups</span>
+        <GroupsIcon />
       </Link>
       <Link
         href={profileHref}
@@ -122,12 +134,49 @@ function UserChip({
         type="button"
         onClick={() => logout.mutate()}
         disabled={logout.isPending}
-        className="text-sm text-muted underline-offset-4 transition-colors duration-200 ease-out hover:underline disabled:opacity-50"
+        aria-label="Log out"
+        title="Log out"
+        className="whitespace-nowrap text-sm text-muted underline-offset-4 transition-colors duration-200 ease-out hover:underline disabled:opacity-50 max-md:flex max-md:min-h-11 max-md:min-w-8 max-md:items-center max-md:justify-center"
       >
-        Log out
+        <span className="max-md:hidden">Log out</span>
+        <LogoutIcon />
       </button>
     </div>
   );
+}
+
+/** Phone-only header icon (hidden from md up, where text labels show). */
+function MobileIcon({ d }: { d: string }) {
+  return (
+    <svg
+      aria-hidden
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="1.8"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      className="size-5 md:hidden"
+    >
+      <path d={d} />
+    </svg>
+  );
+}
+
+function FriendsIcon() {
+  return (
+    <MobileIcon d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8ZM22 21v-2a4 4 0 0 0-3-3.9M16 3.1a4 4 0 0 1 0 7.8" />
+  );
+}
+
+function GroupsIcon() {
+  return (
+    <MobileIcon d="M12 21a9 9 0 1 0 0-18 9 9 0 0 0 0 18ZM3 12h18M12 3c2.5 2.5 3.8 5.7 3.8 9s-1.3 6.5-3.8 9c-2.5-2.5-3.8-5.7-3.8-9S9.5 5.5 12 3Z" />
+  );
+}
+
+function LogoutIcon() {
+  return <MobileIcon d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4M16 17l5-5-5-5M21 12H9" />;
 }
 
 function GearIcon() {

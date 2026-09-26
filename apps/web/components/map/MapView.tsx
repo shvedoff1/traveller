@@ -8,12 +8,15 @@ import { useMapStore } from "../../lib/stores/map-store";
 import { CompareLegend } from "./CompareLegend";
 import { LoginPrompt } from "./LoginPrompt";
 import { MapCanvas } from "./MapCanvas";
+import { MapModeToggle } from "./MapModeToggle";
 import { useMapVisits } from "./useMapVisits";
 
 /**
- * Wires the map to server + UI state: clicking a country selects it and
- * toggles its visited state through the optimistic mutation; logged-out
- * visitors get a login CTA instead. In compare mode a friend's countries
+ * Wires the map to server + UI state. Clicking a country selects it (the
+ * detail card opens); only in edit mode does the click also toggle its
+ * visited state through the optimistic mutation — view mode is the
+ * default so looking up a name never marks anything by accident.
+ * Logged-out visitors get the card with a login CTA. In compare mode a friend's countries
  * (from the friends-map query) overlay mine, with a legend.
  */
 export function MapView() {
@@ -24,6 +27,7 @@ export function MapView() {
   const setSelected = useMapStore((state) => state.setSelected);
   const setHovered = useMapStore((state) => state.setHovered);
   const showLoginPrompt = useMapStore((state) => state.showLoginPrompt);
+  const mode = useMapStore((state) => state.mode);
 
   const { visited, toggle, ready, isLoggedIn } = useMapVisits();
 
@@ -40,9 +44,10 @@ export function MapView() {
       // no official ISO-3166-1 code) — they can't be persisted.
       if (!isCountryCode(iso)) return;
       setSelected(iso);
+      if (mode !== "edit") return;
       if (ready && !toggle(iso)) showLoginPrompt();
     },
-    [setSelected, ready, toggle, showLoginPrompt],
+    [setSelected, mode, ready, toggle, showLoginPrompt],
   );
 
   return (
@@ -56,6 +61,15 @@ export function MapView() {
         onCountryClick={handleCountryClick}
         onCountryHover={setHovered}
       />
+      {isLoggedIn ? <MapModeToggle /> : null}
+      {isLoggedIn && mode === "edit" ? (
+        // Edit-mode cue: a soft accent frame around the whole map.
+        <div
+          aria-hidden
+          data-testid="edit-mode-frame"
+          className="pointer-events-none absolute inset-0 z-10 shadow-[inset_0_0_0_3px_var(--color-accent)] opacity-60"
+        />
+      ) : null}
       {comparing ? <CompareLegend myName="You" /> : null}
       <LoginPrompt />
     </>

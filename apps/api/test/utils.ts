@@ -91,7 +91,7 @@ export async function createTestContext(
 /** Wipe all rows and throttle keys between suites. */
 export async function resetState(ctx: TestContext): Promise<void> {
   await ctx.prisma.$executeRawUnsafe(
-    'TRUNCATE TABLE "Follow", "VisitedCountry", "RefreshToken", "LoginToken", "OauthAccount", "User" CASCADE',
+    'TRUNCATE TABLE "GroupMember", "Group", "Follow", "VisitedCountry", "RefreshToken", "LoginToken", "OauthAccount", "User" CASCADE',
   );
   await ctx.redis.flushdb();
 }

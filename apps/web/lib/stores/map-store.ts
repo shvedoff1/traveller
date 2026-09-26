@@ -1,6 +1,8 @@
 import { COUNTRY_CENTROIDS } from "@traveller/shared";
 import { create } from "zustand";
 
+import { DEFAULT_MAP_MODE, type MapMode } from "../map/map-mode";
+
 /** A one-shot camera request; `id` re-triggers repeats to the same target. */
 export interface FlyToTarget {
   center: [lng: number, lat: number];
@@ -36,6 +38,8 @@ export interface MapStoreState {
   loginPromptVisible: boolean;
   /** Friend overlaid on the main map, or null when not comparing. */
   compareWith: CompareFriend | null;
+  /** View (click = look) or edit (click = toggle visited). */
+  mode: MapMode;
   setSelected: (iso: string | null) => void;
   setHovered: (iso: string | null) => void;
   setHighlighted: (iso: string | null) => void;
@@ -46,6 +50,7 @@ export interface MapStoreState {
   /** Enter compare mode with one friend (replaces any previous one). */
   startCompare: (friend: CompareFriend) => void;
   stopCompare: () => void;
+  setMode: (mode: MapMode) => void;
 }
 
 let nextFlyToId = 1;
@@ -57,6 +62,7 @@ export const useMapStore = create<MapStoreState>((set) => ({
   flyTo: null,
   loginPromptVisible: false,
   compareWith: null,
+  mode: DEFAULT_MAP_MODE,
   setSelected: (iso) => set({ selected: iso }),
   setHovered: (iso) => set({ hovered: iso }),
   setHighlighted: (iso) => set({ highlighted: iso }),
@@ -70,4 +76,5 @@ export const useMapStore = create<MapStoreState>((set) => ({
   hideLoginPrompt: () => set({ loginPromptVisible: false }),
   startCompare: (friend) => set({ compareWith: friend }),
   stopCompare: () => set({ compareWith: null }),
+  setMode: (mode) => set({ mode }),
 }));

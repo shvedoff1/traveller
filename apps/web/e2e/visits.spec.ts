@@ -20,17 +20,22 @@ test("mark a country via the panel, edit details, survive reload", async ({
   await expect(panel).toBeVisible();
   await expect(page.getByTestId("stats-count")).toHaveText("0");
 
-  // Search filters the list; picking the row marks the country.
+  // Search filters the list; the row opens the country, the checkbox marks it.
   await page.getByTestId("country-search").fill("France");
-  const franceRow = page.getByTestId("country-row-FR");
-  await franceRow.click();
-  await expect(franceRow).toHaveAttribute("aria-pressed", "true");
-  await expect(page.getByTestId("stats-count")).toHaveText("1");
-  await expect(page.getByTestId("visited-heading")).toHaveText("Visited (1)");
-
-  // The detail sheet opened — save a year and a note.
+  await page.getByTestId("country-row-FR").click();
   const sheet = page.getByTestId("country-detail-sheet");
   await expect(sheet).toContainText("France");
+  await expect(page.getByTestId("stats-count")).toHaveText("0");
+
+  const franceToggle = page.getByTestId("country-toggle-FR");
+  await franceToggle.click();
+  await expect(franceToggle).toHaveAttribute("aria-checked", "true");
+  await expect(page.getByTestId("stats-count")).toHaveText("1");
+  await expect(page.getByTestId("list-filter-visited")).toHaveText(
+    "Visited 1",
+  );
+
+  // The detail sheet (still open) saves a year and a note.
   await page.getByTestId("visit-year").selectOption("2019");
   await page.getByTestId("visit-note").fill("Croissants in Paris");
   await page.getByTestId("visit-save").click();
@@ -38,14 +43,14 @@ test("mark a country via the panel, edit details, survive reload", async ({
   // Survives reload.
   await page.reload();
   await expect(page.getByTestId("stats-count")).toHaveText("1");
-  await expect(page.getByTestId("visited-heading")).toHaveText("Visited (1)");
-  await expect(page.getByTestId("visited-row-FR")).toHaveAttribute(
-    "aria-pressed",
+  await page.getByTestId("list-filter-visited").click();
+  await expect(page.getByTestId("country-toggle-FR")).toHaveAttribute(
+    "aria-checked",
     "true",
   );
+  await expect(page.getByTestId("country-row-FR")).toContainText("2019");
 
   // Year + note re-display in the sheet for a visited country.
-  await page.getByTestId("country-search").fill("France");
   await page.getByTestId("country-row-FR").click();
   await expect(page.getByTestId("visit-year")).toHaveValue("2019");
   await expect(page.getByTestId("visit-note")).toHaveValue(
@@ -55,9 +60,34 @@ test("mark a country via the panel, edit details, survive reload", async ({
   // Unmark from the sheet.
   await page.getByTestId("visit-unmark").click();
   await expect(page.getByTestId("stats-count")).toHaveText("0");
-  await expect(page.getByTestId("country-row-FR")).toHaveAttribute(
-    "aria-pressed",
+  await page.getByTestId("list-filter-all").click();
+  await page.getByTestId("country-search").fill("France");
+  await expect(page.getByTestId("country-toggle-FR")).toHaveAttribute(
+    "aria-checked",
     "false",
+  );
+});
+
+test("map starts in view mode; edit mode marks on click", async ({
+  page,
+  request,
+}) => {
+  const email = `e2e-mode-${Date.now()}@example.com`;
+  await page.goto(await requestVerifyUrl(request, email));
+  await page.waitForURL(/localhost:3000/);
+  await page.goto("/");
+  const toggle = page.getByTestId("map-mode-toggle");
+  await expect(toggle).toHaveAttribute("data-mode", "view");
+
+  await toggle.getByTestId("map-mode-edit").click();
+  await expect(toggle).toHaveAttribute("data-mode", "edit");
+  await expect(page.getByTestId("edit-mode-frame")).toBeVisible();
+
+  // Remembered across reloads.
+  await page.reload();
+  await expect(page.getByTestId("map-mode-toggle")).toHaveAttribute(
+    "data-mode",
+    "edit",
   );
 });
 
@@ -70,11 +100,11 @@ test("logged-out visitors get a login prompt instead of a mutation", async ({
   await expect(page.getByRole("link", { name: "Log in" })).toBeVisible();
 
   await page.getByTestId("country-search").fill("Japan");
-  await page.getByTestId("country-row-JP").click();
+  await page.getByTestId("country-toggle-JP").click();
 
   await expect(page.getByTestId("login-prompt")).toBeVisible();
-  await expect(page.getByTestId("country-row-JP")).toHaveAttribute(
-    "aria-pressed",
+  await expect(page.getByTestId("country-toggle-JP")).toHaveAttribute(
+    "aria-checked",
     "false",
   );
   await expect(page.getByTestId("stats-count")).toHaveText("0");
