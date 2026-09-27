@@ -4,7 +4,6 @@ import { notFound, permanentRedirect } from "next/navigation";
 
 import { ProfileHeader } from "../../components/profile/ProfileHeader";
 import { ProfileMap } from "../../components/profile/ProfileMap";
-import { StatsPanel } from "../../components/stats/StatsPanel";
 import {
   getPublicProfile,
   getPublicStats,
@@ -70,16 +69,13 @@ export default async function ProfilePage({ params }: { params: Params }) {
       <ProfileMap
         username={profile.username}
         countryCodes={profile.countryCodes}
+        stats={worldStats}
       />
       <ProfileHeader
         username={profile.username}
         displayName={profile.displayName}
         avatarUrl={profile.avatarUrl}
         countryCount={profile.counts.countries}
-      />
-      <StatsPanel
-        stats={worldStats}
-        className="absolute bottom-4 left-4 z-20"
       />
     </main>
   );

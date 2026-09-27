@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { ProfileMap } from "../components/profile/ProfileMap";
 import { api } from "../lib/api-client";
 import { LAYER_SELECTED, buildSelectedFilter } from "../lib/map/map-style";
+import { computeStats } from "../lib/stats";
 import { MockMap } from "./mocks/maplibre-gl";
 
 vi.mock("maplibre-gl", () => import("./mocks/maplibre-gl"));
@@ -45,7 +46,11 @@ function renderProfile() {
   });
   return render(
     <QueryClientProvider client={client}>
-      <ProfileMap username="maria" countryCodes={["JP", "FR", "BR", "IT"]} />
+      <ProfileMap
+        username="maria"
+        countryCodes={["JP", "FR", "BR", "IT"]}
+        stats={computeStats(["JP", "FR", "BR", "IT"])}
+      />
     </QueryClientProvider>,
   );
 }
@@ -60,14 +65,18 @@ afterEach(() => {
 });
 
 describe("profile country list", () => {
-  it("opens from the button, grouped by continent, and flies to a pick", async () => {
+  it("opens from the stats card, grouped by continent, and flies to a pick", async () => {
     mocked.getMe.mockResolvedValue(null);
     renderProfile();
 
     expect(screen.queryByTestId("profile-countries")).not.toBeInTheDocument();
+    // The stats card is the trigger (no second "Countries" button).
+    expect(screen.getByTestId("stats-count")).toHaveTextContent("4");
     const button = screen.getByTestId("profile-countries-button");
-    expect(button).toHaveTextContent("Countries4");
+    expect(button).toHaveAccessibleName("Show the country list");
+    expect(button).toHaveAttribute("aria-expanded", "false");
     fireEvent.click(button);
+    expect(button).toHaveAttribute("aria-expanded", "true");
 
     const panel = screen.getByTestId("profile-countries");
     const headings = within(panel)
@@ -88,6 +97,12 @@ describe("profile country list", () => {
     );
 
     fireEvent.click(screen.getByTestId("profile-countries-close"));
+    expect(screen.queryByTestId("profile-countries")).not.toBeInTheDocument();
+
+    // The card toggles too.
+    fireEvent.click(button);
+    expect(screen.getByTestId("profile-countries")).toBeInTheDocument();
+    fireEvent.click(button);
     expect(screen.queryByTestId("profile-countries")).not.toBeInTheDocument();
   });
 
