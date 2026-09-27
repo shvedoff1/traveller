@@ -3,19 +3,23 @@
 import { COUNTRY_CENTROIDS } from "@traveller/shared";
 import { useCallback, useRef, useState } from "react";
 
+import { type WorldStats } from "../../lib/stats";
 import { type FlyToRequest, MapCanvas } from "../map/MapCanvas";
 import { ProfileCountries } from "./ProfileCountries";
 
 /**
- * The read-only profile map plus its country list. Picking a country in
+ * The read-only profile map, its stats card and the country list the card
+ * opens. Picking a country in
  * the list outlines it and flies the camera there.
  */
 export function ProfileMap({
   username,
   countryCodes,
+  stats,
 }: {
   username: string;
   countryCodes: string[];
+  stats: WorldStats;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
   const [flyTo, setFlyTo] = useState<FlyToRequest | null>(null);
@@ -43,6 +47,7 @@ export function ProfileMap({
       <ProfileCountries
         username={username}
         countryCodes={countryCodes}
+        stats={stats}
         selected={selected}
         onPick={pick}
       />

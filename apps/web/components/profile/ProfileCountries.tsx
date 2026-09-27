@@ -2,12 +2,14 @@
 
 import { useMemo, useState } from "react";
 
+import { type WorldStats } from "../../lib/stats";
 import {
   type ProfileListFilter,
   buildProfileCountryList,
 } from "../../lib/profile/country-list";
 import { useMe, useVisitsQuery } from "../../lib/visits/use-visits";
 import { visitedCodes } from "../../lib/visits/visits-cache";
+import { StatsPanel } from "../stats/StatsPanel";
 
 const FILTER_LABELS: Record<ProfileListFilter, string> = {
   all: "All",
@@ -16,18 +18,20 @@ const FILTER_LABELS: Record<ProfileListFilter, string> = {
 };
 
 /**
- * "Countries (N)" button on a profile map that opens the owner's list of
- * countries, by continent. Logged-in visitors (on someone else's profile)
+ * The profile's stats card, which doubles as the button that opens the
+ * owner's list of countries, by continent. Logged-in visitors (on someone else's profile)
  * can narrow it to countries you share or ones you haven't been to.
  * Picking a country flies the map to it.
  */
 export function ProfileCountries({
   username,
   countryCodes,
+  stats,
   selected,
   onPick,
 }: {
   username: string;
+  stats: WorldStats;
   countryCodes: readonly string[];
   selected: string | null;
   onPick: (iso: string) => void;
@@ -55,17 +59,30 @@ export function ProfileCountries({
 
   return (
     <>
-      <button
-        type="button"
-        data-testid="profile-countries-button"
-        aria-expanded={open}
-        onClick={() => setOpen((value) => !value)}
-        className="absolute bottom-4 right-16 z-30 flex min-h-10 items-center gap-2 rounded-full border border-edge bg-surface px-4 text-sm shadow-2xl backdrop-blur-xl transition-colors duration-200 ease-out hover:bg-surface-strong max-md:right-[4.25rem] max-md:min-h-11"
-      >
-        <ListIcon />
-        Countries
-        <span className="tabular-nums text-muted">{list.counts.all}</span>
-      </button>
+      {/* The stats card is the trigger: a full-card button laid over it
+          (a <button> can't wrap the card's list markup itself). */}
+      <div className="absolute bottom-4 left-4 z-20">
+        {/* Right padding keeps the text clear of the list hint. */}
+        <StatsPanel stats={stats} className="max-md:pr-9" />
+        <button
+          type="button"
+          data-testid="profile-countries-button"
+          aria-expanded={open}
+          aria-label={open ? "Hide the country list" : "Show the country list"}
+          onClick={() => setOpen((value) => !value)}
+          className="group absolute inset-0 flex items-start justify-end rounded-2xl p-3 transition-colors duration-200 ease-out hover:bg-surface-strong/40"
+        >
+          <span
+            aria-hidden
+            className="flex items-center gap-1 text-xs text-muted transition-colors duration-200 ease-out group-hover:text-foreground"
+          >
+            <ListIcon />
+            <span className={`transition-transform duration-200 ease-out ${open ? "rotate-90" : ""}`}>
+              ›
+            </span>
+          </span>
+        </button>
+      </div>
 
       {open ? (
         <section
@@ -184,7 +201,7 @@ function ListIcon() {
       stroke="currentColor"
       strokeWidth="1.8"
       strokeLinecap="round"
-      className="size-4"
+      className="size-3.5"
     >
       <path d="M9 6h11M9 12h11M9 18h11M4 6h.01M4 12h.01M4 18h.01" />
     </svg>
