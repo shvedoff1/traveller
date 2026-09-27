@@ -2,8 +2,8 @@ import { USERNAME_REGEX } from "@traveller/shared";
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 
-import { MapCanvas } from "../../components/map/MapCanvas";
 import { ProfileHeader } from "../../components/profile/ProfileHeader";
+import { ProfileMap } from "../../components/profile/ProfileMap";
 import { StatsPanel } from "../../components/stats/StatsPanel";
 import {
   getPublicProfile,
@@ -67,14 +67,10 @@ export default async function ProfilePage({ params }: { params: Params }) {
 
   return (
     <main className="relative h-dvh w-full overflow-hidden">
-      <div className="absolute inset-0">
-        <MapCanvas
-          visited={profile.countryCodes}
-          selected={null}
-          readonly
-          showProjectionToggle
-        />
-      </div>
+      <ProfileMap
+        username={profile.username}
+        countryCodes={profile.countryCodes}
+      />
       <ProfileHeader
         username={profile.username}
         displayName={profile.displayName}

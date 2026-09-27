@@ -11,6 +11,9 @@ test("public profile: logged-out render, share, casing redirect, OG image", asyn
   browser,
   request,
 }) => {
+  // The longest flow in the suite (login, share, list, OG image); on a cold
+  // dev server the first compile of each route alone can eat most of 60s.
+  test.setTimeout(90_000);
   // Fresh user per run — the dev DB keeps state between runs.
   const stamp = Date.now();
   const email = `e2e-profile-${stamp}@example.com`;
@@ -68,6 +71,18 @@ test("public profile: logged-out render, share, casing redirect, OG image", asyn
   await expect(anonPage.getByTestId("stats-count")).toHaveText("1");
   await expect(anonPage.getByTestId("map-canvas")).toBeVisible();
   await expect(anonPage.getByTestId("edit-map-link")).toHaveCount(0);
+
+  // The Countries button opens the list of their countries by name.
+  await anonPage.getByTestId("profile-countries-button").click();
+  const list = anonPage.getByTestId("profile-countries");
+  await expect(list).toContainText("Europe");
+  await list.getByTestId("profile-country-FR").click();
+  await expect(list.getByTestId("profile-country-FR")).toHaveAttribute(
+    "aria-current",
+    "true",
+  );
+  await anonPage.getByTestId("profile-countries-close").click();
+  await expect(list).toHaveCount(0);
 
   // The tab title leads with the nick.
   await expect(anonPage).toHaveTitle(`@${username} — 1 country`);
